@@ -1,0 +1,43 @@
+
+set(PUBSUBER_VERSION @PACKAGE_VERSION@)
+
+@PACKAGE_INIT@
+
+set_and_check(PUBSUBER_INCLUDE_DIR "@PACKAGE_PS_INSTALL_INCLUDEDIR@")
+set_and_check(PUBSUBER_LIBRARY_DIR "@PACKAGE_PS_INSTALL_LIBDIR@")
+set_and_check(PUBSUBER_CONFIG_DIR "@PACKAGE_PS_INSTALL_CMAKEDIR@")
+
+find_package(spdlog CONFIG REQUIRED)
+find_package(Protobuf REQUIRED)
+find_package(gRPC CONFIG)
+if (NOT gRPC_FOUND)
+  message(WARNING "gRPC not found using CONFIG, trying module approach using home-grown module")
+
+  set(ps_save_CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH})
+  list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR})
+
+  # Use weird NIH module way
+  find_package(gRPC REQUIRED)
+  find_package(ZLIB REQUIRED)
+  find_package(OpenSSL REQUIRED)
+
+  # Wild hack bcuz gRPC doesn not provide CONFIG in packages
+  set_property(TARGET gRPC::grpc++ APPEND PROPERTY
+      INTERFACE_LINK_LIBRARIES ZLIB::ZLIB OpenSSL::SSL cares)
+
+  set_property(TARGET gRPC::grpc++ APPEND PROPERTY
+      INTERFACE_LINK_DIRECTORIES /usr/lib /opt/local/lib)
+
+  set(CMAKE_MODULE_PATH ${ps_save_CMAKE_MODULE_PATH})
+  unset(ps_save_CMAKE_MODULE_PATH)
+endif()
+
+if (gRPC_FOUND)
+  message(STATUS "Using gRPC ${gRPC_VERSION}")
+
+  set(GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/@PS_TARGETS_EXPORT_NAME@.cmake")
+
+check_required_components(Pubsuber)
