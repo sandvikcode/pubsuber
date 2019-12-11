@@ -1,0 +1,25 @@
+digraph hierarchy {
+
+  node[shape=record,style=filled,fillcolor=skyblue]
+  edge[dir=back, arrowtail=empty, arrowtail=diamond]
+
+  ranksep=1
+  nodesep=0.85
+
+  {rank=same; Client Message Subscription Topic}
+  Client,Message,Subscription,Topic[style=filled,fillcolor=seagreen2]
+
+
+  Client->Executor
+  Executor->Trimpl
+  Executor->ModAckIterator
+  Executor->PullIterator[weight=0]
+  ModAckIterator->Executor[arrowtail=odiamond]
+  PullIterator->ModAckIterator
+
+  Subscription->Executor[arrowtail=odiamond]
+  Subscription->Trimpl
+  Topic->Trimpl
+  Message->ModAckIterator[arrowtail=odiamond]
+
+}
