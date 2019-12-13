@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include "Algorithms.h"
 #include "Distribution.h"
-#include "Pubsuber.h"
+#include "pubsuber/Pubsuber.h"
 #include "Trimpl.h"
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
 

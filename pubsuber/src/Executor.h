@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 #include "ModAckIterator.h"
-#include "Pubsuber.h"
+#include "pubsuber/Pubsuber.h"
 #include "SubscriptionPullIterator.h"
 #include "Trimpl.h"
 #include "google/pubsub/v1/pubsub.grpc.pb.h"

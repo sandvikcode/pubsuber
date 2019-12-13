@@ -9,7 +9,7 @@
 #include <sstream>
 #include <thread>
 
-#include "Pubsuber.h"
+#include "pubsuber/Pubsuber.h"
 
 using namespace pubsuber;
 using namespace std::chrono;
