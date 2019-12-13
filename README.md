@@ -15,6 +15,7 @@ Why? Simply because Google does not provide one.
   - [macOS](#macOS)
   - [Windows](#windows)
 - [Install](#installing-pubsuber-using-cmake)
+- [In-source builds](#in-source-pubsuber-build)
 - [Versioning](#versioning)
 - [Contributing changes](#contributing-changes)
 - [Licensing](#licensing)
@@ -102,6 +103,26 @@ cd .build
 cmake ..
 
 Open visual studio solution and build it
+```
+### In source pubsuber build
+
+It is possible to have pubsuber as a part of your build subtree.
+
+Using CMake it could be achieved by using `FetchContent` module.
+
+```cmake
+include(FetchContent)
+fetchcontent_declare(pubsuber
+                     GIT_REPOSITORY https://github.com/sandvikcode/pubsuber.git
+                     GIT_TAG origin/develop)
+
+fetchcontent_getproperties(pubsuber)
+
+if(NOT pubsuber_POPULATED)
+  fetchcontent_populate(pubsuber)
+  add_subdirectory(${pubsuber_SOURCE_DIR} ${pubsuber_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
+
 ```
 
 ### Installing `pubsuber` using CMake

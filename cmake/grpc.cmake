@@ -28,12 +28,12 @@ if (gRPC_FOUND)
   set(GRPC_CPP_PLUGIN_EXECUTABLE $<TARGET_FILE:gRPC::grpc_cpp_plugin>)
 endif()
 
-set(PROTO_GENS_DIR ${CMAKE_BINARY_DIR}/gens)
+set(PROTO_GENS_DIR ${CMAKE_CURRENT_BINARY_DIR}/gens)
 file(MAKE_DIRECTORY ${PROTO_GENS_DIR})
 # make it generaly available
 include_directories(${PROTO_GENS_DIR})
 
-# protobuf_generate_grpc_cpp (<SRCS> <HDRS> [<ARGN>...])
+# protobuf_generate_grpc_cpp (<SRCS> <HDRS> PROTO_PATH_PREFIX prefix PROTO_FILES [<ARGN>...])
 #  --------------------------
 #
 #   Add custom commands to process ``.proto`` files to C++ using protoc and
@@ -46,9 +46,15 @@ include_directories(${PROTO_GENS_DIR})
 #
 
 function(protobuf_generate_grpc_cpp SRCS HDRS)
-  cmake_parse_arguments(protobuf_generate_grpc_cpp "" "" ""  ${ARGN})
+  cmake_parse_arguments(protobuf_generate_grpc_cpp "" "PROTO_PATH_PREFIX" "PROTO_FILES"  ${ARGN})
 
-  set(_proto_files "${protobuf_generate_grpc_cpp_UNPARSED_ARGUMENTS}")
+  set(_proto_prefix "${protobuf_generate_grpc_cpp_PROTO_PATH_PREFIX}")
+  if(NOT _proto_prefix)
+    message(SEND_ERROR "Error: PROTOBUF_GENERATE_GRPC_CPP() called without PROTO_PATH_PREFIX")
+    return()
+  endif()
+
+  set(_proto_files "${protobuf_generate_grpc_cpp_PROTO_FILES}")
   if(NOT _proto_files)
     message(SEND_ERROR "Error: PROTOBUF_GENERATE_GRPC_CPP() called without any proto files")
     return()
@@ -57,12 +63,11 @@ function(protobuf_generate_grpc_cpp SRCS HDRS)
   set(SRCS_OUT)
   set(HDRS_OUT)
 
-  #-I ${PROTOBUF_WELLKNOWN_INCLUDE_DIR}
-  set(_protobuf_include_path -I . -I ${Protobuf_INCLUDE_DIRS})
-  foreach(FIL ${ARGN})
+  set(_protobuf_include_path -I ${_proto_prefix} -I ${Protobuf_INCLUDE_DIRS})
+  foreach(FIL ${_proto_files})
     get_filename_component(ABS_FIL ${FIL} ABSOLUTE)
     get_filename_component(FIL_WE ${FIL} NAME_WE)
-    file(RELATIVE_PATH REL_FIL ${CMAKE_SOURCE_DIR} ${ABS_FIL})
+    file(RELATIVE_PATH REL_FIL ${_proto_prefix} ${ABS_FIL})
     get_filename_component(REL_DIR ${REL_FIL} DIRECTORY)
     set(RELFIL_WE "${REL_DIR}/${FIL_WE}")
 
@@ -83,7 +88,7 @@ function(protobuf_generate_grpc_cpp SRCS HDRS)
            ${_protobuf_include_path}
            ${REL_FIL}
       DEPENDS ${ABS_FIL} ${PROTOBUF_PROTOC} ${GRPC_CPP_PLUGIN_EXECUTABLE}
-      WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+      WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
       COMMENT "Running gRPC C++ protocol buffer compiler on ${FIL}"
       VERBATIM)
 

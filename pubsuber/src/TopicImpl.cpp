@@ -1,5 +1,5 @@
 #include "TopicImpl.h"
-#include "Pubsuber.h"
+#include "pubsuber/Pubsuber.h"
 
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
 #include "google/pubsub/v1/pubsub.pb.h"
