@@ -27,11 +27,12 @@ target_sources(pubsuber
 
 set_target_properties(pubsuber PROPERTIES PUBLIC_HEADER Pubsuber.h)
 
-protobuf_generate_grpc_cpp(GRPC_SRCS GRPC_HDRS
-  ${CMAKE_SOURCE_DIR}/google/pubsub/v1/pubsub.proto
-  ${CMAKE_SOURCE_DIR}/google/api/client.proto
-  ${CMAKE_SOURCE_DIR}/google/api/http.proto
-  ${CMAKE_SOURCE_DIR}/google/api/annotations.proto
+protobuf_generate_grpc_cpp(GRPC_SRCS GRPC_HDRS PROTO_PATH_PREFIX ${PS_PROTO_FILES_PATH_PREFIX}
+  PROTO_FILES
+  ${PS_PROTO_FILES_PATH_PREFIX}/google/pubsub/v1/pubsub.proto
+  ${PS_PROTO_FILES_PATH_PREFIX}/google/api/client.proto
+  ${PS_PROTO_FILES_PATH_PREFIX}/google/api/http.proto
+  ${PS_PROTO_FILES_PATH_PREFIX}/google/api/annotations.proto
 )
 
 target_sources(pubsuber
@@ -48,6 +49,13 @@ target_include_directories(pubsuber PUBLIC
 )
 
 if(WIN32 AND MSVC)
+  target_compile_definitions(pubsuber PRIVATE
+    -D_WIN32_WINNT=0x600
+    -D_SCL_SECURE_NO_WARNINGS
+    -D_CRT_SECURE_NO_WARNINGS
+    -D_WINSOCK_DEPRECATED_NO_WARNINGS
+  )
+
   set_target_properties(pubsuber PROPERTIES COMPILE_PDB_NAME "pubsuber"
     COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
   )

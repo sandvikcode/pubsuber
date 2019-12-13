@@ -10,7 +10,7 @@ set(PACKAGE_VERSION   "0.9.0")
 set(PACKAGE_STRING    "${PACKAGE_NAME} ${PACKAGE_VERSION}")
 set(PACKAGE_TARNAME   "${PACKAGE_NAME}-${PACKAGE_VERSION}")
 set(PACKAGE_BUGREPORT "https://github.com/sandvikcode/pubsuber/issues")
-project(${PACKAGE_NAME} LANGUAGES C CXX)
+project(${PACKAGE_NAME} VERSION ${PACKAGE_VERSION} LANGUAGES C CXX)
 
 set(PS_INSTALL_BINDIR "bin" CACHE STRING "Installation directory for executables")
 set(PS_INSTALL_LIBDIR "lib" CACHE STRING "Installation directory for libraries")
@@ -25,10 +25,21 @@ set(PS_CMAKE_VERSION_CONFIG_FILE "${PS_CMAKE_CONFIG_DIR}/${PROJECT_NAME}ConfigVe
 set(PS_CMAKE_PROJECT_CONFIG_FILE "${PS_CMAKE_CONFIG_DIR}/${PROJECT_NAME}Config.cmake")
 set(PS_CMAKE_PROJECT_TARGETS_FILE "${PS_CMAKE_CONFIG_DIR}/${PROJECT_NAME}Targets.cmake")
 
-set(PS_INSTALL_default ON)
+# By default it is implied that pubsuber is build as standalone lib
+set(PS_IN_SOURCE_BUILD OFF)
+# CMAKE_SOURCE_DIR points to the top cmake file that may include pubsuber cmakefile
+# CMAKE_CURRENT_LIST_DIR points to current pubsuber cmakefile
+# If path for those two is not the same it means pubsuber is included as a subdirectory
 if (NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  set(PS_IN_SOURCE_BUILD ON)
+  message(STATUS "Pubsuber in source build is: ${PS_IN_SOURCE_BUILD}")
+endif()
+
+set(PS_INSTALL_default ON)
+if (${PS_IN_SOURCE_BUILD})
   # Disable PS_INSTALL by default if building as a submodule
   set(PS_INSTALL_default OFF)
+  message(STATUS "Pubsuber install is: ${PS_INSTALL_default}")
 endif()
 set(PS_INSTALL ${PS_INSTALL_default} CACHE BOOL "Generate installation target")
 
@@ -61,17 +72,16 @@ endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 
-if (MSVC)
-  add_definitions(-D_WIN32_WINNT=0x600 -D_SCL_SECURE_NO_WARNINGS -D_CRT_SECURE_NO_WARNINGS -D_WINSOCK_DEPRECATED_NO_WARNINGS)
-endif()
-
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 include(cmake/grpc.cmake)
 include(cmake/spdlog.cmake)
 if (WITH_TESTS)
   include(CTest) # Defines option BUILD_TESTING.
 endif()
+
+# Path prefix to the folder with  proto files. Required for correct in-source build
+set (PS_PROTO_FILES_PATH_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(pubsuber)
 add_subdirectory(example)
