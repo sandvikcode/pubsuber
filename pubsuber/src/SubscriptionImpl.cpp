@@ -13,9 +13,13 @@ using grpc::ClientContext;
 using namespace pubsuber;
 
 //**********************************************************************************************************************
-SubscriptionImpl::SubscriptionImpl(std::weak_ptr<Executor> executor, const std::string &id, const std::string &name)
+SubscriptionImpl::SubscriptionImpl(std::weak_ptr<Executor> executor, const std::string &id, const std::string &name, RetryCountPolicy countPolicy,
+                                   MaxRetryTimePolicy timePolicy, ExponentialBackoffPolicy backoffPolicy)
 : EntityBase(id, name)
-, _executor(executor) {
+, _executor(executor)
+, _countPolicy(countPolicy)
+, _timePolicy(timePolicy)
+, _backoffPolicy(backoffPolicy) {
   // Copy transport
   if (auto exec = _executor.lock()) {
     _tr = exec->_tr;

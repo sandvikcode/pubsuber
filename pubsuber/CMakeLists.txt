@@ -4,6 +4,9 @@ add_library(pubsuber::pubsuber ALIAS pubsuber)
 
 target_sources(pubsuber
   PRIVATE
+    include/pubsuber/Pubsuber.h
+    src/ExpoBackoff.cpp
+    src/ExpoBackoff.h
     src/Distribution.h
     src/Executor.cpp
     src/Executor.h
@@ -12,7 +15,6 @@ target_sources(pubsuber
     src/ModAckIterator.cpp
     src/ModAckIterator.h
     src/Pubsuber.cpp
-    include/pubsuber/Pubsuber.h
     src/SubscriptionImpl.cpp
     src/SubscriptionImpl.h
     src/SubscriptionPullIterator.cpp

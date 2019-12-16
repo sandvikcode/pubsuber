@@ -1,4 +1,5 @@
 #include "TopicImpl.h"
+#include "ExpoBackoff.h"
 #include "pubsuber/Pubsuber.h"
 
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
@@ -25,12 +26,35 @@ namespace {
       attrPtr->insert({it.first, it.second});
     }
   }
+  /*
+    grpc::Status make_retriable_call(object, func, policy, args) {
+      for (auto i = 0; i < kDefultRetryAttempts; ++i) {
+        ClientContext ctx;
+        set_deadline(ctx, timeout);
+
+        switch (auto status = publisher->GetTopic(&ctx, request, &topic); status.error_code()) {
+          case grpc::StatusCode::DEADLINE_EXCEEDED:
+            timeout *= 2;
+
+          case grpc::StatusCode::UNAVAILABLE:
+            // TODO: some policy magic
+            // sleep(Nms);
+          default:
+            return status;
+        }
+      }  // end of for
+    }
+    */
 }  // namespace
 
 //**********************************************************************************************************************
-TopicImpl::TopicImpl(Trimpl &&impl, const std::string &id, const std::string &topic)
+TopicImpl::TopicImpl(Trimpl &&impl, const std::string &id, const std::string &topic, RetryCountPolicy countPolicy, MaxRetryTimePolicy timePolicy,
+                     ExponentialBackoffPolicy backoffPolicy)
 : EntityBase(id, topic)
-, _tr(std::move(impl)) {}
+, _tr(std::move(impl))
+, _countPolicy(countPolicy)
+, _timePolicy(timePolicy)
+, _backoffPolicy(backoffPolicy) {}
 
 bool TopicImpl::Exists() {
   using google::pubsub::v1::Topic;
