@@ -109,6 +109,7 @@ namespace pubsuber {
 
   public:
     Executor(ClientOptions &&opts);
+    void ApplyPolicies(const RetryCountPolicy &countPolicy, const MaxRetryTimePolicy &timePolicy, ExponentialBackoffPolicy &backoffPolicy);
 
     // Thread safe
     void StopThreads();
@@ -135,6 +136,9 @@ namespace pubsuber {
   public:
     ClientOptions _options;
     Trimpl _tr;
+    RetryCountPolicy _countPolicy;
+    MaxRetryTimePolicy _timePolicy;
+    ExponentialBackoffPolicy _backoffPolicy;
 
     // Ack thread data
     ThreadDataBlock<IteratorMap> _ackThread;

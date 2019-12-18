@@ -1,9 +1,8 @@
 #include "TopicImpl.h"
-#include "ExpoBackoff.h"
+
 #include "pubsuber/Pubsuber.h"
 
-#include "google/pubsub/v1/pubsub.grpc.pb.h"
-#include "google/pubsub/v1/pubsub.pb.h"
+#include "Retriable.h"
 
 using google::protobuf::Empty;
 using google::pubsub::v1::DeleteTopicRequest;
@@ -12,7 +11,6 @@ using google::pubsub::v1::Publisher;
 using google::pubsub::v1::PublishRequest;
 using google::pubsub::v1::PublishResponse;
 using google::pubsub::v1::PubsubMessage;
-using grpc::ClientContext;
 
 using namespace pubsuber;
 
@@ -26,25 +24,7 @@ namespace {
       attrPtr->insert({it.first, it.second});
     }
   }
-  /*
-    grpc::Status make_retriable_call(object, func, policy, args) {
-      for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-        ClientContext ctx;
-        set_deadline(ctx, timeout);
 
-        switch (auto status = publisher->GetTopic(&ctx, request, &topic); status.error_code()) {
-          case grpc::StatusCode::DEADLINE_EXCEEDED:
-            timeout *= 2;
-
-          case grpc::StatusCode::UNAVAILABLE:
-            // TODO: some policy magic
-            // sleep(Nms);
-          default:
-            return status;
-        }
-      }  // end of for
-    }
-    */
 }  // namespace
 
 //**********************************************************************************************************************
@@ -57,161 +37,89 @@ TopicImpl::TopicImpl(Trimpl &&impl, const std::string &id, const std::string &to
 , _backoffPolicy(backoffPolicy) {}
 
 bool TopicImpl::Exists() {
-  using google::pubsub::v1::Topic;
+  GetTopicRequest request;
+  request.set_topic(_fullName);
+  google::pubsub::v1::Topic topic;
 
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    auto publisher = Publisher::NewStub(_tr._channel);
-    _tr.EnsureConnected();
-    ClientContext ctx;
+  auto publisher = Publisher::NewStub(_tr._channel);
+  _tr.EnsureConnected();
+  auto [status, _] = retriable::make_call(publisher, &Publisher::Stub::GetTopic, request, topic, _countPolicy, _timePolicy, _backoffPolicy);
 
-    GetTopicRequest request;
-    request.set_topic(_fullName);
-    Topic topic;
+  switch (status.error_code()) {
+    case grpc::StatusCode::NOT_FOUND:
+      return false;
 
-    set_deadline(ctx, timeout);
-    switch (auto status = publisher->GetTopic(&ctx, request, &topic); status.error_code()) {
-      case grpc::StatusCode::NOT_FOUND:
-        return false;
-
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        // Retry once again
-        timeout *= 2;
-        continue;
-
-      default:
-        if (!status.ok()) {
-          const auto err = "GetTopicRequest request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-          throw Exception(err);
-        }
-        return true;
-    }
-  }  // end of for
-
-  const auto err = "GetTopicRequest request failed " + std::to_string(kDefultRetryAttempts) + " times with error";
-  throw Exception(err);
+    default:
+      if (!status.ok()) {
+        const auto err = "GetTopicRequest request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        throw Exception(err, status.error_code());
+      }
+      return true;
+  }
 }
 
 void TopicImpl::Create() {
-  using google::pubsub::v1::Topic;
+  ::google::pubsub::v1::Topic request;
+  ::google::pubsub::v1::Topic response;
+  request.set_name(_fullName);
 
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    auto publisher = Publisher::NewStub(_tr._channel);
-    _tr.EnsureConnected();
-    ClientContext ctx;
+  auto publisher = Publisher::NewStub(_tr._channel);
+  _tr.EnsureConnected();
+  auto [status, _] = retriable::make_call(publisher, &Publisher::Stub::CreateTopic, request, response, _countPolicy, _timePolicy, _backoffPolicy);
 
-    Topic request;
-    Topic response;
-    request.set_name(_fullName);
-
-    set_deadline(ctx, timeout);
-    switch (auto status = publisher->CreateTopic(&ctx, request, &response); status.error_code()) {
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        // Retry once again
-        timeout *= 2;
-        continue;
-
-      default:
-        if (!status.ok()) {
-          const auto err = "CreateTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-          throw Exception(err);
-        }
-        // its okay
-        return;
-    }
-  }  // end of for
-
-  const auto err = "CreateTopic request failed " + std::to_string(kDefultRetryAttempts) + " times with error";
-  throw Exception(err);
+  if (!status.ok()) {
+    const auto err = "CreateTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+    throw Exception(err, status.error_code());
+  }
 }
 
 void TopicImpl::Delete() {
-  using google::pubsub::v1::Topic;
+  DeleteTopicRequest request;
+  Empty response;
+  request.set_topic(_fullName);
 
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    auto publisher = Publisher::NewStub(_tr._channel);
-    _tr.EnsureConnected();
-    ClientContext ctx;
+  auto publisher = Publisher::NewStub(_tr._channel);
+  _tr.EnsureConnected();
+  auto [status, _] = retriable::make_call(publisher, &Publisher::Stub::DeleteTopic, request, response, _countPolicy, _timePolicy, _backoffPolicy);
 
-    DeleteTopicRequest request;
-    Empty response;
-    request.set_topic(_fullName);
+  switch (status.error_code()) {
+    // If topic is not found then it is fine and not an error
+    case grpc::StatusCode::NOT_FOUND:
+      return;
 
-    set_deadline(ctx, timeout);
-    switch (auto status = publisher->DeleteTopic(&ctx, request, &response); status.error_code()) {
-      // If topic is not found then it is fine and not an error
-      case grpc::StatusCode::NOT_FOUND:
-        return;
-
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        // Retry once again
-        timeout *= 2;
-        continue;
-
-      default:
-        if (!status.ok()) {
-          const auto err = "DeleteTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-          throw Exception(err);
-        }
-        // its okay
-        return;
-    }
-  }  // end of for
-
-  const auto err = "DeleteTopic request failed " + std::to_string(kDefultRetryAttempts) + " times with error";
-  throw Exception(err);
+    default:
+      if (!status.ok()) {
+        const auto err = "DeleteTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        throw Exception(err, status.error_code());
+      }
+      // its okay
+      return;
+  }
 }
 
 std::string TopicImpl::Publish(const ByteBuffer &buffer, const std::map<std::string, std::string> &attributes) {
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    auto publisher = Publisher::NewStub(_tr._channel);
-    _tr.EnsureConnected();
-    ClientContext ctx;
+  PublishRequest request;
+  request.set_topic(_fullName);
+  PubsubMessage &msg = *request.add_messages();
 
-    PublishRequest request;
-    request.set_topic(_fullName);
-    PubsubMessage &msg = *request.add_messages();
+  msg.set_data(buffer.data(), buffer.size());
+  copy_attributes(msg, attributes);
 
-    msg.set_data(buffer.data(), buffer.size());
-    copy_attributes(msg, attributes);
+  PublishResponse response;
+  auto publisher = Publisher::NewStub(_tr._channel);
+  _tr.EnsureConnected();
+  auto [status, _] = retriable::make_call(publisher, &Publisher::Stub::Publish, request, response, _countPolicy, _timePolicy, _backoffPolicy);
 
-    PublishResponse response;
+  switch (status.error_code()) {
+    default:
+      if (!status.ok()) {
+        const auto err = "Publish request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        throw Exception(err, status.error_code());
+      }
 
-    set_deadline(ctx, timeout);
-    switch (auto status = publisher->Publish(&ctx, request, &response); status.error_code()) {
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        // Retry once again
-        timeout *= 2;
-        continue;
-
-      default:
-        if (!status.ok()) {
-          const auto err = "Publish request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-          throw Exception(err);
-        }
-
-        if (response.message_ids_size() == 0) {
-          throw Exception("received response.message_ids_size() is 0, no msg id to return to caller.");
-        }
-        return response.message_ids(0);
-    }
-  }  // end of for
-
-  const auto err = "Publish request failed " + std::to_string(kDefultRetryAttempts) + " times with error";
-  throw Exception(err);
+      if (response.message_ids_size() == 0) {
+        throw Exception("received response.message_ids_size() is 0, no msg id to return to caller.");
+      }
+      return response.message_ids(0);
+  }
 }

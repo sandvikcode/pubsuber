@@ -23,9 +23,9 @@ namespace pubsuber {
     virtual std::string Publish(const ByteBuffer &buffer, const std::map<std::string, std::string> &attributes = {}) override;
 
     Trimpl _tr;
-    RetryCountPolicy _countPolicy;
-    MaxRetryTimePolicy _timePolicy;
-    ExponentialBackoffPolicy _backoffPolicy;
+    const RetryCountPolicy _countPolicy;
+    const MaxRetryTimePolicy _timePolicy;
+    const ExponentialBackoffPolicy _backoffPolicy;
   };
 
 }  // namespace pubsuber

@@ -27,9 +27,9 @@ namespace pubsuber {
     std::weak_ptr<Executor> _executor;
     Trimpl _tr;
     bool _receiverActive{false};
-    RetryCountPolicy _countPolicy;
-    MaxRetryTimePolicy _timePolicy;
-    ExponentialBackoffPolicy _backoffPolicy;
+    const RetryCountPolicy _countPolicy;
+    const MaxRetryTimePolicy _timePolicy;
+    const ExponentialBackoffPolicy _backoffPolicy;
   };
 
 }  // namespace pubsuber

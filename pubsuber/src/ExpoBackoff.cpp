@@ -5,11 +5,11 @@ using namespace pubsuber;
 using namespace std::chrono;
 
 namespace {
-  const double DefaultJitter = 0.1140430175;
+  const double DefaultJitter = 0.11049435140430175;
 
   std::mt19937_64 CreatePRNG() {
     std::random_device rd;
-    const auto N = std::mt19937_64::state_size * (std::mt19937_64::word_size / std::numeric_limits<uint32_t>::digits);
+    constexpr auto N = std::mt19937_64::state_size * (std::mt19937_64::word_size / std::numeric_limits<uint32_t>::digits);
     // Get the necessary number of entropy bits
     std::vector<uint32_t> entropy(N);
     std::generate(entropy.begin(), entropy.end(), [&rd]() { return rd(); });
@@ -20,7 +20,7 @@ namespace {
   auto toMs(double v) { return std::chrono::milliseconds(static_cast<uint64_t>(v)); }
 }  // namespace
 
-ExpoBackoff::ExpoBackoff(ExponentialBackoffPolicy backoffPolicy)
+ExpoBackoff::ExpoBackoff(const ExponentialBackoffPolicy &backoffPolicy)
 : _backoffPolicy(backoffPolicy)
 , _gen(CreatePRNG())
 , _jitter(DefaultJitter)

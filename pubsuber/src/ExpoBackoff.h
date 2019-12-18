@@ -7,12 +7,12 @@
 namespace pubsuber {
 
   class ExpoBackoff {
-    ExpoBackoff(ExponentialBackoffPolicy backoffPolicy);
-    ~ExpoBackoff() = default;
-
     void CalculateNext();
 
   public:
+    ExpoBackoff(const ExponentialBackoffPolicy &backoffPolicy);
+    ~ExpoBackoff() = default;
+
     std::chrono::milliseconds Delay();
     uint32_t RetryCount() const { return _attempt; }
 

@@ -4,6 +4,7 @@
 #include <cassert>
 #include <vector>
 #include "MessageImpl.h"
+#include "Retriable.h"
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
 #include "google/pubsub/v1/pubsub.pb.h"
 
@@ -29,7 +30,7 @@ void SubscriptionPullIterator::Pull(std::unique_ptr<google::pubsub::v1::Subscrib
   request.set_max_messages(_maxMessagePrefetch);
   request.set_return_immediately(true);
 
-  set_deadline(ctx);
+  retriable::set_deadline(ctx);
   auto status = subscriber->Pull(&ctx, request, &response);
 
   if (status.ok()) {
@@ -57,6 +58,6 @@ void SubscriptionPullIterator::Pull(std::unique_ptr<google::pubsub::v1::Subscrib
 
   } else {
     const auto err = "Pull of " + _subscriptionName + " failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-    throw Exception(err);
+    throw Exception(err, status.error_code());
   }
 }

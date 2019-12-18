@@ -5,6 +5,7 @@ add_library(pubsuber::pubsuber ALIAS pubsuber)
 target_sources(pubsuber
   PRIVATE
     include/pubsuber/Pubsuber.h
+    src/Retriable.h
     src/ExpoBackoff.cpp
     src/ExpoBackoff.h
     src/Distribution.h

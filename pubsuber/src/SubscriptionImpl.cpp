@@ -1,8 +1,5 @@
 #include "SubscriptionImpl.h"
-
-#include <cassert>
-#include "google/pubsub/v1/pubsub.grpc.pb.h"
-#include "google/pubsub/v1/pubsub.pb.h"
+#include "Retriable.h"
 
 using google::protobuf::Empty;
 using google::pubsub::v1::DeleteSubscriptionRequest;
@@ -37,123 +34,74 @@ SubscriptionImpl::~SubscriptionImpl() {
 }
 
 bool SubscriptionImpl::Exists() {
-  using google::pubsub::v1::Subscription;
+  GetSubscriptionRequest request;
+  ::google::pubsub::v1::Subscription subscription;
+  request.set_subscription(_fullName);
+  auto subscriber = Subscriber::NewStub(_tr._channel);
+  _tr.EnsureConnected();
 
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    auto subscriber = Subscriber::NewStub(_tr._channel);
-    _tr.EnsureConnected();
-    ClientContext ctx;
+  auto [status, _] = retriable::make_call(subscriber, &Subscriber::Stub::GetSubscription, request, subscription, _countPolicy, _timePolicy, _backoffPolicy);
 
-    GetSubscriptionRequest request;
-    request.set_subscription(_fullName);
-    Subscription subscription;
+  switch (status.error_code()) {
+    case grpc::StatusCode::NOT_FOUND:
+      return false;
 
-    set_deadline(ctx, timeout);
-    switch (auto status = subscriber->GetSubscription(&ctx, request, &subscription); status.error_code()) {
-      case grpc::StatusCode::NOT_FOUND:
-        return false;
+    default:
+      if (!status.ok()) {
+        const auto err = "GetSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        throw Exception(err, status.error_code());
+      }
 
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        // Retry once again
-        timeout *= 2;
-        continue;
-
-      default:
-        if (!status.ok()) {
-          const auto err = "GetSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-          throw Exception(err);
-        }
-
-        // Save ack deadline for subscription
-        _ackDeadline = std::chrono::seconds(subscription.ack_deadline_seconds());
-        return true;
-    }
-  }  // end of for
-
-  const auto err = "GetSubscription request failed " + std::to_string(kDefultRetryAttempts) + " times with error";
-  throw Exception(err);
+      // Save ack deadline for subscription
+      _ackDeadline = std::chrono::seconds(subscription.ack_deadline_seconds());
+      return true;
+  }
 }
 
 void SubscriptionImpl::Create(Subscription::CreationOptions &&options) {
-  using google::pubsub::v1::Subscription;
+  ::google::pubsub::v1::Subscription request;
+  ::google::pubsub::v1::Subscription subscription;
+  request.set_name(_fullName);
+  request.set_topic(options._fullTopicName);
+  request.set_ack_deadline_seconds(options._ackDeadline.count());
 
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    auto subscriber = Subscriber::NewStub(_tr._channel);
-    _tr.EnsureConnected();
-    ClientContext ctx;
+  auto subscriber = Subscriber::NewStub(_tr._channel);
+  _tr.EnsureConnected();
 
-    Subscription request;
-    request.set_name(_fullName);
-    request.set_topic(options._fullTopicName);
-    request.set_ack_deadline_seconds(options._ackDeadline.count());
-    Subscription subscription;
+  auto [status, _] = retriable::make_call(subscriber, &Subscriber::Stub::CreateSubscription, request, subscription, _countPolicy, _timePolicy, _backoffPolicy);
 
-    // Creating subscription could take too long sometimes
-    set_deadline(ctx, timeout);
-    switch (auto status = subscriber->CreateSubscription(&ctx, request, &subscription); status.error_code()) {
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        // Retry once again
-        timeout *= 2;
-        continue;
-
-      default:
-        if (!status.ok()) {
-          const auto err = "CreateSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-          throw Exception(err);
-        }
-        _ackDeadline = std::chrono::seconds(subscription.ack_deadline_seconds());
-        return;
-    }
-  }  // end of for
-
-  const auto err = "CreateSubscription request failed " + std::to_string(kDefultRetryAttempts) + " times with error";
-  throw Exception(err);
+  switch (status.error_code()) {
+    default:
+      if (!status.ok()) {
+        const auto err = "CreateSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        throw Exception(err, status.error_code());
+      }
+      _ackDeadline = std::chrono::seconds(subscription.ack_deadline_seconds());
+      return;
+  }
 }
 
 void SubscriptionImpl::Delete() {
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    auto subscriber = Subscriber::NewStub(_tr._channel);
-    _tr.EnsureConnected();
-    ClientContext ctx;
+  DeleteSubscriptionRequest request;
+  request.set_subscription(_fullName);
+  Empty response;
+  auto subscriber = Subscriber::NewStub(_tr._channel);
+  _tr.EnsureConnected();
 
-    DeleteSubscriptionRequest request;
-    request.set_subscription(_fullName);
-    Empty response;
+  auto [status, _] = retriable::make_call(subscriber, &Subscriber::Stub::DeleteSubscription, request, response, _countPolicy, _timePolicy, _backoffPolicy);
 
-    set_deadline(ctx, timeout);
-    switch (auto status = subscriber->DeleteSubscription(&ctx, request, &response); status.error_code()) {
-      // If subscription is not found then it is fine and not an error
-      case grpc::StatusCode::NOT_FOUND:
-        return;
+  switch (status.error_code()) {
+    // If subscription is not found then it is fine and not an error
+    case grpc::StatusCode::NOT_FOUND:
+      return;
 
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        // Retry once again
-        timeout *= 2;
-        continue;
-
-      default:
-        if (!status.ok()) {
-          const auto err = "DeleteSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-          throw Exception(err);
-        }
-        return;
-    }
-  }  // end of for
-
-  const auto err = "DeleteSubscription request failed " + std::to_string(kDefultRetryAttempts) + " times with error";
-  throw Exception(err);
+    default:
+      if (!status.ok()) {
+        const auto err = "DeleteSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        throw Exception(err, status.error_code());
+      }
+      return;
+  }
 }
 
 void SubscriptionImpl::Receive(Callback cb) {

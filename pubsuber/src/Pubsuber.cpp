@@ -13,11 +13,6 @@ using namespace std::chrono;
 
 namespace {
   const std::string DefaultPubsubHost = "pubsub.googleapis.com";
-  const auto DefaultRetryCount = 3;
-  const auto DefaultMaxRetryInterval = 15s;
-  const auto DefaultInitialDelay = 250ms;
-  const auto DefaultMaxDelay = 5s;
-  const auto DefaultScale = 2.0;
 }  // namespace
 
 //**********************************************************************************************************************
@@ -40,13 +35,12 @@ Client::Client(ClientOptions &&opts)
     const auto err = "Unable to connect to " + _executor->_options.Host() + " within given timeout";
     throw Exception(err);
   }
+}
 
-  // Default backoff and retry
-  _countPolicy._count = DefaultRetryCount;
-  _timePolicy._interval = DefaultMaxRetryInterval;
-  _backoffPolicy._initialDelay = DefaultInitialDelay;
-  _backoffPolicy._maxDelay = DefaultMaxDelay;
-  _backoffPolicy._scale = DefaultScale;
+void Client::ApplyPolicies() {
+  if (_executor) {
+    _executor->ApplyPolicies(_countPolicy, _timePolicy, _backoffPolicy);
+  }
 }
 
 TopicPtr Client::GetTopic(const std::string &id, const std::string &project) {

@@ -252,14 +252,14 @@ namespace pubsuber {
   struct RetryCountPolicy {
     // Maximum amount of tries to perform GRPC call
     // Use 0 to try indefinitely
-    uint32_t _count;
+    uint32_t _count{3};
   };
 
   /**
    * Retry policy that limits amount of time retry should happen
    */
   struct MaxRetryTimePolicy {
-    std::chrono::seconds _interval;
+    std::chrono::seconds _interval{std::chrono::seconds(15)};
   };
 
   /**
@@ -267,11 +267,11 @@ namespace pubsuber {
    */
   struct ExponentialBackoffPolicy {
     // Initial delay before first retry
-    std::chrono::milliseconds _initialDelay;
+    std::chrono::milliseconds _initialDelay{std::chrono::milliseconds(250)};
     // Upper limit for the delay
-    std::chrono::milliseconds _maxDelay;
+    std::chrono::milliseconds _maxDelay{std::chrono::seconds(15)};
     // Scale factor
-    double _scale;
+    double _scale{2.7182818};
   };
 
   /**
@@ -280,7 +280,7 @@ namespace pubsuber {
    *
    * Retry and backoff policies could be specified upon client creation in any order
    * In case the same type policy specified many times later one will be used
-   * If policy is not specified then default one will be used
+   * If policy is not specified then default one will be used. Applicable for each policy type.
    * RetryCountPolicy and MaxRetryTimePolicy can work together. Which ever occurs first breaks the retry loop first
    */
   class Client final {
@@ -335,12 +335,10 @@ namespace pubsuber {
     explicit Client(ClientOptions &&opts);
 
     void Apply(RetryCountPolicy &&policy) { _countPolicy = std::move(policy); }
-
     void Apply(MaxRetryTimePolicy &&policy) { _timePolicy = std::move(policy); }
-
     void Apply(ExponentialBackoffPolicy &&policy) { _backoffPolicy = std::move(policy); }
 
-    void ApplyPolicies() {}
+    void ApplyPolicies();
 
     template <typename First, typename... Policies>
     void ApplyPolicies(First &&first, Policies &&... policies) {
