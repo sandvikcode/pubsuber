@@ -1,6 +1,4 @@
 #!/bin/bash
 
-ls pubsuber/src/*.cpp | xargs clang-format -i -style=file
-ls pubsuber/src/*.h | xargs clang-format -i -style=file
-ls pubsuber/tests/*.cpp | xargs clang-format -i -style=file
-ls pubsuber/tests/*.h | xargs clang-format -i -style=file
+find pubsuber -type f -name *.h -print0 | xargs -0 clang-format -i -style=file
+find pubsuber -type f -name *.cpp -print0 | xargs -0 clang-format -i -style=file

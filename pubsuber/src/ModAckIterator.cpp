@@ -5,7 +5,7 @@
 #include <type_traits>
 #include "ContainerTypes.h"
 #include "Executor.h"
-#include "google/pubsub/v1/pubsub.grpc.pb.h"
+#include "Retriable.h"
 #include "google/pubsub/v1/pubsub.pb.h"
 
 using namespace pubsuber;
@@ -40,10 +40,14 @@ namespace {
 AckWatchDescriptior::AckWatchDescriptior(std::chrono::steady_clock::time_point next)
 : _nextAck(next) {}
 
-ModAckIterator::ModAckIterator(std::string subscriptionName, std::shared_ptr<Executor> executor)
+ModAckIterator::ModAckIterator(std::string subscriptionName, std::shared_ptr<Executor> executor, const RetryCountPolicy &countPolicy,
+                               const MaxRetryTimePolicy &timePolicy, ExponentialBackoffPolicy &backoffPolicy)
 : _subscriptionName(subscriptionName)
 , _gracePeriod(kMinAckDeadline / 2)
-, _executor(executor) {}
+, _executor(executor)
+, _countPolicy(countPolicy)
+, _timePolicy(timePolicy)
+, _backoffPolicy(backoffPolicy) {}
 
 void ModAckIterator::AddDeadlineWatcher(std::string &&ackID, std::chrono::steady_clock::time_point nextAck) noexcept(true) {
   AckWatchDescriptior descr{nextAck};
@@ -103,36 +107,24 @@ void ModAckIterator::ExtendAckDeadlines(std::unique_ptr<Subscriber::Stub> &subsc
 
   spdlog::debug("ExtendAckDeadlines name:{}, cnt:{}", _subscriptionName, list.size());
 
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    ClientContext ctx;
-    Empty empty;
-    ModifyAckDeadlineRequest request;
-    request.set_ack_deadline_seconds(static_cast<int>(newDeadline.count()));
-    request.set_subscription(_subscriptionName);
+  Empty empty;
+  ModifyAckDeadlineRequest request;
+  request.set_ack_deadline_seconds(static_cast<int>(newDeadline.count()));
+  request.set_subscription(_subscriptionName);
+  populate_ack_ids(*request.mutable_ack_ids(), list);
 
-    populate_ack_ids(*request.mutable_ack_ids(), list);
+  auto [status, now] = retriable::make_call(subscriber, &Subscriber::Stub::ModifyAckDeadline, request, empty, _countPolicy, _timePolicy, _backoffPolicy);
+  const auto next = now + newDeadline;
 
-    set_deadline(ctx, timeout);
-    const auto next = std::chrono::steady_clock::now() + newDeadline;
-    switch (auto status = subscriber->ModifyAckDeadline(&ctx, request, &empty); status.error_code()) {
-      case grpc::StatusCode::OK:
-        Callback(next);
-        return;
+  switch (status.error_code()) {
+    case grpc::StatusCode::OK:
+      Callback(next);
+      return;
 
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        timeout *= 2;
-        // Retry once again
-        continue;
-
-      default:
-        const auto err = "ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-        throw Exception(err);
-    }  // end of switch
-  }    // end of for
+    default:
+      const auto err = "ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+      throw Exception(err, status.error_code());
+  }  // end of switch
 }
 
 template <class IdsContainer>
@@ -246,33 +238,21 @@ void ModAckIterator::SendNacks(std::unique_ptr<google::pubsub::v1::Subscriber::S
 void ModAckIterator::AckMessages(std::unique_ptr<Subscriber::Stub> &subscriber, AckIDSet &list) {
   spdlog::debug("AckMessages name:{}, cnt:{}", _subscriptionName, list.size());
 
-  auto timeout = kDefaultRPCTimeout;
-  for (auto i = 0; i < kDefultRetryAttempts; ++i) {
-    ClientContext ctx;
-    Empty empty;
-    AcknowledgeRequest request;
-    request.set_subscription(_subscriptionName);
+  Empty empty;
+  AcknowledgeRequest request;
+  request.set_subscription(_subscriptionName);
+  populate_ack_ids(*request.mutable_ack_ids(), list);
 
-    populate_ack_ids(*request.mutable_ack_ids(), list);
+  auto [status, _] = retriable::make_call(subscriber, &Subscriber::Stub::Acknowledge, request, empty, _countPolicy, _timePolicy, _backoffPolicy);
 
-    set_deadline(ctx, timeout);
-    switch (auto status = subscriber->Acknowledge(&ctx, request, &empty); status.error_code()) {
-      case grpc::StatusCode::OK:
-        return;
+  switch (status.error_code()) {
+    case grpc::StatusCode::OK:
+      return;
 
-      case grpc::StatusCode::UNAVAILABLE:
-        continue;
-
-      case grpc::StatusCode::DEADLINE_EXCEEDED:
-        timeout *= 2;
-        // Retry once again
-        continue;
-
-      default:
-        const auto err = "ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
-        throw Exception(err);
-    }  // end of switch
-  }    // end of for
+    default:
+      const auto err = "ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+      throw Exception(err, status.error_code());
+  }  // end of switch
 }
 
 std::chrono::seconds ModAckIterator::AckDeadline() noexcept(true) {

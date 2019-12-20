@@ -71,6 +71,12 @@ Executor::Executor(ClientOptions &&opts)
   _ackThread._thread = std::thread(&Executor::AckThreadFunc, this);
 }
 
+void Executor::ApplyPolicies(const RetryCountPolicy &countPolicy, const MaxRetryTimePolicy &timePolicy, ExponentialBackoffPolicy &backoffPolicy) {
+  _countPolicy = countPolicy;
+  _timePolicy = timePolicy;
+  _backoffPolicy = backoffPolicy;
+}
+
 void Executor::AddIterator(const std::string &fullSubscriptionName, Callback &callback) {
   spdlog::debug("AddIterator: {}", fullSubscriptionName);
 
@@ -81,7 +87,7 @@ void Executor::AddIterator(const std::string &fullSubscriptionName, Callback &ca
     throw Exception("subscription name must be set");
   }
 
-  auto ackIterator = std::make_shared<ModAckIterator>(fullSubscriptionName, shared_from_this());
+  auto ackIterator = std::make_shared<ModAckIterator>(fullSubscriptionName, shared_from_this(), _countPolicy, _timePolicy, _backoffPolicy);
   auto pullIterator = std::make_shared<SubscriptionPullIterator>(fullSubscriptionName, _options.MaxPrefetch(), callback, ackIterator);
 
   _pullThread.AddIterator(fullSubscriptionName, std::move(pullIterator));

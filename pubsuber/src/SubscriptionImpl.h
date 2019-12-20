@@ -9,7 +9,8 @@ namespace pubsuber {
     SubscriptionImpl() = delete;
 
   public:
-    SubscriptionImpl(std::weak_ptr<Executor> simpl, const std::string &id, const std::string &name);
+    SubscriptionImpl(std::weak_ptr<Executor> simpl, const std::string &id, const std::string &name, RetryCountPolicy countPolicy, MaxRetryTimePolicy timePolicy,
+                     ExponentialBackoffPolicy backoffPolicy);
     virtual ~SubscriptionImpl();
 
   private:
@@ -26,6 +27,9 @@ namespace pubsuber {
     std::weak_ptr<Executor> _executor;
     Trimpl _tr;
     bool _receiverActive{false};
+    const RetryCountPolicy _countPolicy;
+    const MaxRetryTimePolicy _timePolicy;
+    const ExponentialBackoffPolicy _backoffPolicy;
   };
 
 }  // namespace pubsuber

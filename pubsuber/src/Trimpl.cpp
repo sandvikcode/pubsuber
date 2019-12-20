@@ -11,8 +11,3 @@ bool Trimpl::EnsureConnected() {
   // Wait for the channel to connect
   return _channel->WaitForConnected(deadline);
 }
-
-void pubsuber::set_deadline(grpc::ClientContext &ctx, std::chrono::seconds timeout) {
-  std::chrono::system_clock::time_point deadline = std::chrono::system_clock::now() + timeout;
-  ctx.set_deadline(deadline);
-}

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pubsuber/Pubsuber.h"
 #include "Trimpl.h"
+#include "pubsuber/Pubsuber.h"
 
 namespace pubsuber {
 
@@ -10,7 +10,8 @@ namespace pubsuber {
     TopicImpl() = delete;
 
   public:
-    TopicImpl(Trimpl &&impl, const std::string &id, const std::string &topic);
+    TopicImpl(Trimpl &&impl, const std::string &id, const std::string &topic, RetryCountPolicy countPolicy, MaxRetryTimePolicy timePolicy,
+              ExponentialBackoffPolicy backoffPolicy);
     virtual ~TopicImpl() = default;
 
   private:
@@ -19,9 +20,12 @@ namespace pubsuber {
     virtual bool Exists() override;
     virtual void Create() override;
     virtual void Delete() override;
-    virtual std::string Publish(const ByteBuffer &buffer, const std::map<std::string, std::string> &attributes) override;
+    virtual std::string Publish(const ByteBuffer &buffer, const std::map<std::string, std::string> &attributes = {}) override;
 
     Trimpl _tr;
+    const RetryCountPolicy _countPolicy;
+    const MaxRetryTimePolicy _timePolicy;
+    const ExponentialBackoffPolicy _backoffPolicy;
   };
 
 }  // namespace pubsuber

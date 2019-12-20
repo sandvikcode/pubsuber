@@ -97,8 +97,9 @@ namespace pubsuber {
 
     /**
      * Publish pubsub message with given payload and attributes
+     *
      * Binary data could be serialized in string object
-     * Attribute keys must not be empty
+     * Attribute key names must not be empty
      */
     virtual std::string Publish(const ByteBuffer &buffer, const std::map<std::string, std::string> &attributes = {}) = 0;
   };
@@ -246,12 +247,46 @@ namespace pubsuber {
   };
 
   /**
+   * Retry count policy for failed calls that limits amount of tries
+   */
+  struct RetryCountPolicy {
+    // Maximum amount of tries to perform GRPC call
+    // Use 0 to try indefinitely
+    uint32_t _count{3};
+  };
+
+  /**
+   * Retry policy that limits amount of time retry should happen
+   */
+  struct MaxRetryTimePolicy {
+    std::chrono::seconds _interval{std::chrono::seconds(15)};
+  };
+
+  /**
+   * Backoff policy for failed GRPC calls
+   */
+  struct ExponentialBackoffPolicy {
+    // Initial delay before first retry
+    std::chrono::milliseconds _initialDelay{std::chrono::milliseconds(250)};
+    // Upper limit for the delay
+    std::chrono::milliseconds _maxDelay{std::chrono::seconds(15)};
+    // Scale factor
+    double _scale{2.7182818};
+  };
+
+  /**
    * Pubsub client
    * Implementation is thread safe
+   *
+   * Retry and backoff policies could be specified upon client creation in any order
+   * In case the same type policy specified many times later one will be used
+   * If policy is not specified then default one will be used. Applicable for each policy type.
+   * RetryCountPolicy and MaxRetryTimePolicy can work together. Which ever occurs first breaks the retry loop first
    */
   class Client final {
   public:
-    static std::unique_ptr<Client> Create(ClientOptions &&opts);
+    template <typename... Policies>
+    static std::shared_ptr<Client> Create(ClientOptions &&opts, Policies &&... policies);
 
     ~Client();
 
@@ -299,7 +334,44 @@ namespace pubsuber {
   private:
     explicit Client(ClientOptions &&opts);
 
+    void Apply(RetryCountPolicy &&policy) { _countPolicy = std::move(policy); }
+    void Apply(MaxRetryTimePolicy &&policy) { _timePolicy = std::move(policy); }
+    void Apply(ExponentialBackoffPolicy &&policy) { _backoffPolicy = std::move(policy); }
+
+    void ApplyPolicies();
+
+    template <typename First, typename... Policies>
+    void ApplyPolicies(First &&first, Policies &&... policies) {
+      Apply(std::move(first));
+      ApplyPolicies(std::forward<Policies>(policies)...);
+    }
+
+    template <typename... Policies>
+    explicit Client(ClientOptions &&opts, Policies &&... policies)
+    : Client(std::move(opts)) {
+      ApplyPolicies(std::forward<Policies>(policies)...);
+    }
+
   private:
     std::shared_ptr<Executor> _executor;
+    RetryCountPolicy _countPolicy;
+    MaxRetryTimePolicy _timePolicy;
+    ExponentialBackoffPolicy _backoffPolicy;
   };
+
+  using ClientPtr = std::shared_ptr<Client>;
+
+  template <typename... Policies>
+  ClientPtr Client::Create(ClientOptions &&opts, Policies &&... policies) {
+    if (opts.Project().empty()) {
+      throw Exception("project must not be empty string");
+    }
+
+    if (opts.Host().empty()) {
+      throw Exception("pubsubHost must not be empty");
+    }
+
+    return std::shared_ptr<Client>(new Client(std::move(opts), std::forward<Policies>(policies)...));
+  }
+
 }  // namespace pubsuber

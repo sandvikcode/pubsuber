@@ -40,9 +40,13 @@ void DoTheJob(uint32_t limit, const char *project) {
   pubsuber::ClientOptions opts = pubsuber::ClientOptions::CreateDefault(project);
   auto msink = std::make_shared<MetricSinkTest>();
 
-  std::unique_ptr<Client> client;
+  pubsuber::ClientPtr client;
   try {
-    client = pubsuber::Client::Create(std::move(opts));
+    pubsuber::RetryCountPolicy countPolicy{4};
+    pubsuber::MaxRetryTimePolicy timePolicy{30s};
+    pubsuber::ExponentialBackoffPolicy backoffPolicy{250ms, 3s, 2.0};
+
+    client = pubsuber::Client::Create(std::move(opts), std::move(timePolicy), std::move(countPolicy), std::move(backoffPolicy));
     client->AddMetricSink(msink);
 
     auto topic = client->GetTopic(kTopicName);

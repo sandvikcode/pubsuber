@@ -10,11 +10,6 @@ namespace pubsuber {
   constexpr auto kMinAckDeadline = 10s;
   constexpr auto kMaxAckDeadline = 600s;
 
-  constexpr auto kDefultRetryAttempts = 3;
-  constexpr auto kDefaultRPCTimeout = 30s;
-
-  void set_deadline(grpc::ClientContext &ctx, std::chrono::seconds timeout = kDefaultRPCTimeout);
-
   // Transport Impl = Trimpl
   struct Trimpl {
     // Call to make sure channel is connected

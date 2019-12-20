@@ -6,9 +6,9 @@
 #include <unordered_set>
 #include "Algorithms.h"
 #include "Distribution.h"
-#include "pubsuber/Pubsuber.h"
 #include "Trimpl.h"
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
+#include "pubsuber/Pubsuber.h"
 
 #include <spdlog/spdlog.h>
 
@@ -17,7 +17,8 @@ namespace pubsuber {
 
   class ModAckIterator {
   public:
-    ModAckIterator(std::string subscriptionName, std::shared_ptr<Executor> executor);
+    ModAckIterator(std::string subscriptionName, std::shared_ptr<Executor> executor, const RetryCountPolicy &countPolicy, const MaxRetryTimePolicy &timePolicy,
+                   ExponentialBackoffPolicy &backoffPolicy);
 
     enum class DoneAction : int { Ack, Nack };
 
@@ -68,6 +69,10 @@ namespace pubsuber {
     const std::chrono::seconds _gracePeriod;
     Distribution<kMaxAckDeadline.count() + 1> _ackDist;
     std::weak_ptr<Executor> _executor;
+
+    const RetryCountPolicy _countPolicy;
+    const MaxRetryTimePolicy _timePolicy;
+    const ExponentialBackoffPolicy _backoffPolicy;
 
     // managed under the lock on any thread
     WatchDescrContainer _inputAckIDs;
