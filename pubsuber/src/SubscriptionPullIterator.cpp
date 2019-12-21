@@ -1,5 +1,4 @@
 #include "SubscriptionPullIterator.h"
-#include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cassert>
 #include <vector>
@@ -34,7 +33,7 @@ void SubscriptionPullIterator::Pull(std::unique_ptr<google::pubsub::v1::Subscrib
   auto status = subscriber->Pull(&ctx, request, &response);
 
   if (status.ok()) {
-    spdlog::trace("Pulled {} message(s)", response.received_messages_size());
+    logger::trace("Pulled {} message(s)", response.received_messages_size());
 
     std::vector<MessagePtr> vec;
     const auto pseudoNow = std::chrono::steady_clock::now();

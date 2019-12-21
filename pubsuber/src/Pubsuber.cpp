@@ -1,10 +1,11 @@
 #include "pubsuber/Pubsuber.h"
 
 #include <grpc++/grpc++.h>
-#include <spdlog/spdlog.h>
 #include <algorithm>
+#include <memory>
 #include "Executor.h"
 #include "MessageImpl.h"
+#include "PSLog.h"
 #include "SubscriptionImpl.h"
 #include "TopicImpl.h"
 

@@ -15,7 +15,7 @@
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
 #include "pubsuber/Pubsuber.h"
 
-#include <spdlog/spdlog.h>
+#include "PSLog.h"
 
 namespace pubsuber {
   const auto kSoManyMilliseconds = 1000000000ms;
@@ -106,6 +106,8 @@ namespace pubsuber {
 
     // Must be called on ACK thread only
     std::chrono::milliseconds ProcessModAcks();
+
+    void SetupLogger();
 
   public:
     Executor(ClientOptions &&opts);

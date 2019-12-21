@@ -1,5 +1,4 @@
 #include "ModAckIterator.h"
-#include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cassert>
 #include <type_traits>
@@ -55,14 +54,14 @@ void ModAckIterator::AddDeadlineWatcher(std::string &&ackID, std::chrono::steady
     exec->ExecuteUnderAckMutex(
         [this, &ackID, &descr]() {
           auto [it, inserted] = _inputAckIDs.insert_or_assign(std::move(ackID), std::move(descr));
-          spdlog::debug("AddDeadlineWatcher: sub: {} ackID: {} inserted:{}", _subscriptionName, it->first, inserted);
+          logger::debug("AddDeadlineWatcher: sub: {} ackID: {} inserted:{}", _subscriptionName, it->first, inserted);
         },
         true);
   } else {
     // With initial object relationship design this situation is nearly impossible
     // Iterators are only owned by Executor and hence executor weak_ptr will always be valid
     // as longs as iterator is alive. Under this assumption we can consider this case as invariant violation.
-    spdlog::error("_executor.lock() weak ref is nullptr. check objects ownership");
+    logger::error("_executor.lock() weak ref is nullptr. check objects ownership");
   }
 }
 
@@ -74,7 +73,7 @@ void ModAckIterator::Done(const std::string &ackID, std::chrono::steady_clock::t
     exec->ExecuteUnderAckMutex(
         [this, action, &ackID]() {
           auto key = ackID;
-          spdlog::debug("Done: ackID: {}, action: {}", ackID, action);
+          logger::debug("Done: ackID: {}, action: {}", ackID, action);
 
           switch (action) {
             case DoneAction::Ack:
@@ -96,7 +95,7 @@ void ModAckIterator::Done(const std::string &ackID, std::chrono::steady_clock::t
     // With initial object relationship design this situation is nearly impossible
     // Iterators are only owned by Executor and hence executor weak_ptr will always be valid
     // as longs as iterator is alive. Under this assumption we can consider this case as invariant violation.
-    spdlog::error("_executor.lock() weak ref is nullptr. check objects ownership");
+    logger::error("_executor.lock() weak ref is nullptr. check objects ownership");
   }
 }
 
@@ -105,7 +104,7 @@ void ModAckIterator::ExtendAckDeadlines(std::unique_ptr<Subscriber::Stub> &subsc
                                         FinishCallback Callback) {
   static_assert(std::is_invocable_v<FinishCallback, std::chrono::steady_clock::time_point>);
 
-  spdlog::debug("ExtendAckDeadlines name:{}, cnt:{}", _subscriptionName, list.size());
+  logger::debug("ExtendAckDeadlines name:{}, cnt:{}", _subscriptionName, list.size());
 
   Empty empty;
   ModifyAckDeadlineRequest request;
@@ -160,11 +159,11 @@ std::chrono::milliseconds ModAckIterator::ModifyAckDeadlines(std::unique_ptr<Sub
     }
   }
 
-  spdlog::debug("ModifyAckDeadlines: {} for extension", toModify.size());
+  logger::debug("ModifyAckDeadlines: {} for extension", toModify.size());
   while (!toModify.empty()) {
     decltype(toModify) toSend;
     split_request_ids(toModify, toSend, kMaxPayload);
-    spdlog::debug("ModifyAckDeadlines: took {} for extension after split", toSend.size());
+    logger::debug("ModifyAckDeadlines: took {} for extension after split", toSend.size());
     ExtendAckDeadlines(subscriber, toSend, dl, [&toSend](auto next) {
       for (auto &it : toSend) {
         // nop
@@ -191,10 +190,10 @@ std::chrono::milliseconds ModAckIterator::ProcessModAcks(std::unique_ptr<google:
     // With initial object relationship design this situation is nearly impossible
     // Iterators are only owned by Executor and hence executor weak_ptr will always be valid
     // as longs as iterator is alive. Under this assumption we can consider this case as invariant violation.
-    spdlog::error("_executor.lock() weak ref is nullptr. check objects ownership");
+    logger::error("_executor.lock() weak ref is nullptr. check objects ownership");
   }
 
-  spdlog::debug("ProcessModAcks: Keep alives: {}, Acks:{} Nacks:{}", _keepAliveAckIDs.size(), pendingAcks.size(), pendingNacks.size());
+  logger::debug("ProcessModAcks: Keep alives: {}, Acks:{} Nacks:{}", _keepAliveAckIDs.size(), pendingAcks.size(), pendingNacks.size());
 
   // Erase first since pendingAcks will be modified by SandAcks
   erase_keys(_keepAliveAckIDs, pendingAcks);
@@ -206,7 +205,7 @@ std::chrono::milliseconds ModAckIterator::ProcessModAcks(std::unique_ptr<google:
   // Set dl for nacks as 0s, grace is just large around a week
   ModifyAckDeadlines(subscriber, pendingNacks, 0s, kSoManySeconds);
 
-  spdlog::debug("ProcessModAcks: Final keep alives: {}", _keepAliveAckIDs.size());
+  logger::debug("ProcessModAcks: Final keep alives: {}", _keepAliveAckIDs.size());
 
   return ModifyAckDeadlines(subscriber, _keepAliveAckIDs, AckDeadline(), _gracePeriod);
 }
@@ -236,7 +235,7 @@ void ModAckIterator::SendNacks(std::unique_ptr<google::pubsub::v1::Subscriber::S
 }
 
 void ModAckIterator::AckMessages(std::unique_ptr<Subscriber::Stub> &subscriber, AckIDSet &list) {
-  spdlog::debug("AckMessages name:{}, cnt:{}", _subscriptionName, list.size());
+  logger::debug("AckMessages name:{}, cnt:{}", _subscriptionName, list.size());
 
   Empty empty;
   AcknowledgeRequest request;

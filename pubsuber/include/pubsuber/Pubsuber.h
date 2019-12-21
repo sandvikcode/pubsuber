@@ -196,14 +196,17 @@ namespace pubsuber {
   };
 
   /**
-   * Sink is used to receive debug logs
+   * Sink is used to receive debug logs from pubsuber
    *
+   * Internally pubsuber uses spdlog and its types
+   * Log level is provided as spdlog level
    *
+   * NOTE: if no LogSink is provided pubsuber uses console logger
    */
   class LogSink {
   public:
     virtual ~LogSink() = default;
-    // TODO
+    virtual void OnMessage(int level, std::string &&msg) = 0;
   };
 
   /**
@@ -307,28 +310,26 @@ namespace pubsuber {
      * Add metric sink
      * Method is thread safe
      */
-    // exception
     void AddMetricSink(std::shared_ptr<MetricSink> sink);
 
     /**
      * Removes previously sink
      * Method is thread safe
      */
-    // exception
     void RemoveMetricSink();
 
     /**
      * Add log sink
      * Method is thread safe
+     *
+     * NOTE: if no LogSink is provided pubsuber uses console logger
      */
-    // exception
     void AddLogSink(std::shared_ptr<LogSink> sink);
 
     /**
      * Removes previously sink
      * Method is thread safe
      */
-    // exception
     void RemoveLogSink();
 
   private:

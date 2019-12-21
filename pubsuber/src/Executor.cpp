@@ -1,6 +1,5 @@
 #include "Executor.h"
 
-#include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cassert>
 #include <utility>
@@ -56,6 +55,8 @@ void Executor::ThreadDataBlock<IteratorContainerType>::RemoveFromActive() {
 //**********************************************************************************************************************
 Executor::Executor(ClientOptions &&opts)
 : _options(std::move(opts)) {
+  SetupLogger();
+
   if (!_options.SecureChannel()) {
     _tr._creds = grpc::InsecureChannelCredentials();
   }
@@ -78,7 +79,7 @@ void Executor::ApplyPolicies(const RetryCountPolicy &countPolicy, const MaxRetry
 }
 
 void Executor::AddIterator(const std::string &fullSubscriptionName, Callback &callback) {
-  spdlog::debug("AddIterator: {}", fullSubscriptionName);
+  logger::debug("AddIterator: {}", fullSubscriptionName);
 
   if (!callback) {
     throw Exception("callback must be set");
@@ -95,7 +96,7 @@ void Executor::AddIterator(const std::string &fullSubscriptionName, Callback &ca
 }
 
 void Executor::RemoveIterator(const std::string &fullSubscriptionName) noexcept(true) {
-  spdlog::debug("RemoveIterator: {}", fullSubscriptionName);
+  logger::debug("RemoveIterator: {}", fullSubscriptionName);
 
   _pullThread.RemoveIterator(fullSubscriptionName);
   _ackThread.RemoveIterator(fullSubscriptionName);
@@ -163,7 +164,7 @@ void Executor::PullThreadFunc() {
         _pullThread._cond.wait_for(l, sleep);
       }
     } catch (Exception &e) {
-      spdlog::error("Exception in Pull: {}", e.what());
+      logger::error("Exception in Pull: {}", e.what());
     }
   }
 }
@@ -179,7 +180,7 @@ std::chrono::milliseconds Executor::Pull() {
   });  // end of for_each
 
   std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start);
-  spdlog::trace("Pull took: {}us", us.count());
+  logger::trace("Pull took: {}us", us.count());
   if (us > kLowPullLimit) {
     // No need to slowdown the thread
     return kSoManyMilliseconds;
@@ -209,7 +210,7 @@ void Executor::AckThreadFunc() {
         const auto &[name, iterator] = pair;
         keepAliveCount += iterator->KeepAliveCount();
       });
-      spdlog::trace("KeepAlivesCount: {}", keepAliveCount);
+      logger::trace("KeepAlivesCount: {}", keepAliveCount);
       return (keepAliveCount == 0);
     }();
 
@@ -222,19 +223,19 @@ void Executor::AckThreadFunc() {
         const auto &[name, iterator] = pair;
         count += iterator->InputCount();
       });
-      spdlog::trace("getInputCount: {}", count);
+      logger::trace("getInputCount: {}", count);
       return count;
     };
 
     if (std::unique_lock l(_ackThread._condMutex); true) {
       // Wait only if input is empty, save one runloop
       if (needSleep || (getInputCount() == 0 && noKeepAlives)) {
-        spdlog::debug("ACK sleep for: {}ms", sleep.count());
+        logger::debug("ACK sleep for: {}ms", sleep.count());
         const auto status = _ackThread._cond.wait_for(l, sleep);
         if ((!needSleep && status == std::cv_status::timeout) || _ackThread._needStop) {
           continue;
         }
-        spdlog::trace("sleep status: {}", status);
+        logger::trace("sleep status: {}", status);
       }
 
       _ackThread.MergeInputToActive();
@@ -256,7 +257,7 @@ void Executor::AckThreadFunc() {
       needSleep = sleep != kSoManyMilliseconds;
 
     } catch (Exception &e) {
-      spdlog::error("Exception in ProcessModAcks: {}", e.what());
+      logger::error("Exception in ProcessModAcks: {}", e.what());
     }
   }
 }
@@ -272,3 +273,5 @@ std::chrono::milliseconds Executor::ProcessModAcks() {
 
   return sleep;
 }
+
+void Executor::SetupLogger() { logger::Setup(); }

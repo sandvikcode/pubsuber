@@ -122,7 +122,8 @@ void DoTheJob(uint32_t limit, const char *project) {
     client->RemoveMetricSink();
 
   } catch (pubsuber::Exception& e) {
-    std::cerr << "Exception: " << e.what() << std::endl;
+    spdlog::error("Exception: {}", e.what());
+
     google::protobuf::ShutdownProtobufLibrary();
     std::exit(1);
   }
