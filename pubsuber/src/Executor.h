@@ -107,7 +107,7 @@ namespace pubsuber {
     // Must be called on ACK thread only
     std::chrono::milliseconds ProcessModAcks();
 
-    void SetupLogger();
+    void SetupLogger(ClientOptions &opts);
 
   public:
     Executor(ClientOptions &&opts);
@@ -120,11 +120,6 @@ namespace pubsuber {
     void AddIterator(const std::string &fullSubscriptionName, Callback &cb);
     // Thread safe
     void RemoveIterator(const std::string &fullSubscriptionName) noexcept(true);
-
-    // Thread safe
-    void AddMetricSink(std::shared_ptr<MetricSink> sink);
-    // Thread safe
-    void RemoveMetricSink();
 
     // Thread safe
     template <class Block>

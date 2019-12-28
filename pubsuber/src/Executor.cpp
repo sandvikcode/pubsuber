@@ -55,7 +55,7 @@ void Executor::ThreadDataBlock<IteratorContainerType>::RemoveFromActive() {
 //**********************************************************************************************************************
 Executor::Executor(ClientOptions &&opts)
 : _options(std::move(opts)) {
-  SetupLogger();
+  SetupLogger(_options);
 
   if (!_options.SecureChannel()) {
     _tr._creds = grpc::InsecureChannelCredentials();
@@ -66,6 +66,8 @@ Executor::Executor(ClientOptions &&opts)
   arg.SetMaxReceiveMessageSize(kMaxSendRecvBytes);
   arg.SetMaxSendMessageSize(kMaxSendRecvBytes);
   _tr._channel = grpc::CreateCustomChannel(_options.Host(), _tr._creds, arg);
+
+  _metricsSinks = _options.MetricSink();
 
   // then start threads that uses this transport
   _pullThread._thread = std::thread(&Executor::PullThreadFunc, this);
@@ -100,14 +102,6 @@ void Executor::RemoveIterator(const std::string &fullSubscriptionName) noexcept(
 
   _pullThread.RemoveIterator(fullSubscriptionName);
   _ackThread.RemoveIterator(fullSubscriptionName);
-}
-
-void Executor::AddMetricSink(std::shared_ptr<MetricSink> sink) {
-  _ackThread.ExecuteUnderMutex([this, &sink]() { _metricsSinks = sink; }, false);
-}
-
-void Executor::RemoveMetricSink() {
-  _ackThread.ExecuteUnderMutex([this]() { _metricsSinks.reset(); }, false);
 }
 
 void Executor::ReportKeepAliveMetric(size_t count) {
@@ -274,4 +268,4 @@ std::chrono::milliseconds Executor::ProcessModAcks() {
   return sleep;
 }
 
-void Executor::SetupLogger() { logger::Setup(); }
+void Executor::SetupLogger(ClientOptions &opts) { logger::Setup(opts.LogSink(), opts.LogLevel()); }

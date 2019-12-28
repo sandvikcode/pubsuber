@@ -2,17 +2,22 @@
 
 #include <spdlog/sinks/stdout_sinks.h>
 #include <spdlog/spdlog.h>
+#include "pubsuber/Pubsuber.h"
 
 namespace pubsuber::logger {
 
-  inline void Setup() {
-    auto console_sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
-    console_sink->set_pattern("%D-%T.%f [%t] [%L]: %v");
-    console_sink->set_level(spdlog::level::trace);
+  inline void ChangeLevel(spdlog::level::level_enum level) { spdlog::get("pubsuber")->set_level(level); }
 
-    auto logger = std::make_shared<spdlog::logger>("pubsuber", console_sink);
-    logger->set_level(spdlog::level::debug);
+  inline void Setup(std::shared_ptr<pubsuber::LogSink> sink, spdlog::level::level_enum level) {
+    if (!sink) {
+      sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
+      sink->set_pattern("%D-%T.%f [%t] [%L]: %v");
+      sink->set_level(spdlog::level::trace);
+    }
+
+    auto logger = std::make_shared<spdlog::logger>("pubsuber", sink);
     spdlog::register_logger(logger);
+    ChangeLevel(level);
   }
 
   template <typename... Args>

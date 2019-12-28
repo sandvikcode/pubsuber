@@ -6,6 +6,7 @@
 #include "Executor.h"
 #include "MessageImpl.h"
 #include "PSLog.h"
+#include "PubsuberVersion.h"
 #include "SubscriptionImpl.h"
 #include "TopicImpl.h"
 
@@ -70,13 +71,9 @@ SubscriptionPtr Client::GetSubscription(const std::string &id, const std::string
 
 Client::~Client() { _executor->StopThreads(); }
 
-void Client::AddMetricSink(std::shared_ptr<MetricSink> sink) { _executor->AddMetricSink(sink); }
+void Client::SetLogLevel(spdlog::level::level_enum level) { pubsuber::logger::ChangeLevel(level); }
 
-void Client::RemoveMetricSink() { _executor->RemoveMetricSink(); }
-
-void Client::AddLogSink(std::shared_ptr<LogSink> sink) {}
-
-void Client::RemoveLogSink() {}
+std::string Client::VersionString() { return PUBSUBER_VERSION_STRING; }
 
 //**********************************************************************************************************************
 
@@ -89,4 +86,5 @@ ClientOptions::ClientOptions(std::string &&project, std::string host, bool secur
 : _project(std::move(project))
 , _pubsubHost(host)
 , _secureChannel(secure)
-, _maxMessagePrefetch(prefetch) {}
+, _maxMessagePrefetch(prefetch)
+, _logLevel(spdlog::level::info) {}
