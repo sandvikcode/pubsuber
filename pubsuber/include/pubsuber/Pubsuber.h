@@ -369,11 +369,11 @@ namespace pubsuber {
   template <typename... Policies>
   ClientPtr Client::Create(ClientOptions &&opts, Policies &&... policies) {
     if (opts.Project().empty()) {
-      throw Exception("project must not be empty string");
+      throw Exception("Pubsuber: project must not be empty string");
     }
 
     if (opts.Host().empty()) {
-      throw Exception("pubsubHost must not be empty");
+      throw Exception("Pubsuber: pubsubHost must not be empty");
     }
 
     return std::shared_ptr<Client>(new Client(std::move(opts), std::forward<Policies>(policies)...));

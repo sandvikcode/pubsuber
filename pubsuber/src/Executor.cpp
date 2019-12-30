@@ -84,10 +84,10 @@ void Executor::AddIterator(const std::string &fullSubscriptionName, Callback &ca
   logger::debug("AddIterator: {}", fullSubscriptionName);
 
   if (!callback) {
-    throw Exception("callback must be set");
+    throw Exception("Pubsuber: callback must be set");
   }
   if (fullSubscriptionName.empty()) {
-    throw Exception("subscription name must be set");
+    throw Exception("Pubsuber: subscription name must be set");
   }
 
   auto ackIterator = std::make_shared<ModAckIterator>(fullSubscriptionName, shared_from_this(), _countPolicy, _timePolicy, _backoffPolicy);
@@ -224,7 +224,7 @@ void Executor::AckThreadFunc() {
     if (std::unique_lock l(_ackThread._condMutex); true) {
       // Wait only if input is empty, save one runloop
       if (needSleep || (getInputCount() == 0 && noKeepAlives)) {
-        logger::debug("ACK sleep for: {}ms", sleep.count());
+        logger::trace("ACK sleep for: {}ms", sleep.count());
         const auto status = _ackThread._cond.wait_for(l, sleep);
         if ((!needSleep && status == std::cv_status::timeout) || _ackThread._needStop) {
           continue;

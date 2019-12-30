@@ -121,7 +121,7 @@ void ModAckIterator::ExtendAckDeadlines(std::unique_ptr<Subscriber::Stub> &subsc
       return;
 
     default:
-      const auto err = "ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+      const auto err = "Pubsuber: ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
       throw Exception(err, status.error_code());
   }  // end of switch
 }
@@ -249,7 +249,7 @@ void ModAckIterator::AckMessages(std::unique_ptr<Subscriber::Stub> &subscriber, 
       return;
 
     default:
-      const auto err = "ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+      const auto err = "Pubsuber: ModifyAckDeadline failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
       throw Exception(err, status.error_code());
   }  // end of switch
 }

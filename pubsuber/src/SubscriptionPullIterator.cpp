@@ -56,7 +56,7 @@ void SubscriptionPullIterator::Pull(std::unique_ptr<google::pubsub::v1::Subscrib
     }
 
   } else {
-    const auto err = "Pull of " + _subscriptionName + " failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+    const auto err = "Pubsuber: Pull of " + _subscriptionName + " failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
     throw Exception(err, status.error_code());
   }
 }

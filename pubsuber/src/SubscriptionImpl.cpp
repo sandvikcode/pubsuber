@@ -21,7 +21,7 @@ SubscriptionImpl::SubscriptionImpl(std::weak_ptr<Executor> executor, const std::
   if (auto exec = _executor.lock()) {
     _tr = exec->_tr;
   } else {
-    throw Exception("Executor object is not set");
+    throw Exception("Pubsuber: Executor object is not set");
   }
 }
 
@@ -48,7 +48,7 @@ bool SubscriptionImpl::Exists() {
 
     default:
       if (!status.ok()) {
-        const auto err = "GetSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        const auto err = "Pubsuber: GetSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
         throw Exception(err, status.error_code());
       }
 
@@ -73,7 +73,7 @@ void SubscriptionImpl::Create(Subscription::CreationOptions &&options) {
   switch (status.error_code()) {
     default:
       if (!status.ok()) {
-        const auto err = "CreateSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        const auto err = "Pubsuber: CreateSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
         throw Exception(err, status.error_code());
       }
       _ackDeadline = std::chrono::seconds(subscription.ack_deadline_seconds());
@@ -97,7 +97,7 @@ void SubscriptionImpl::Delete() {
 
     default:
       if (!status.ok()) {
-        const auto err = "DeleteSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        const auto err = "Pubsuber: DeleteSubscription request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
         throw Exception(err, status.error_code());
       }
       return;
@@ -107,11 +107,11 @@ void SubscriptionImpl::Delete() {
 void SubscriptionImpl::Receive(Callback cb) {
   // Check if subscription is exists.
   if (!Exists()) {
-    throw Exception("Subscription " + _fullName + " does not exit");
+    throw Exception("Pubsuber: Subscription " + _fullName + " does not exit");
   }
 
   if (_receiverActive) {
-    throw Exception("Subscription object supports only one receiver");
+    throw Exception("Pubsuber: Subscription object supports only one receiver");
   }
 
   if (auto exec = _executor.lock()) {
@@ -119,7 +119,7 @@ void SubscriptionImpl::Receive(Callback cb) {
     // Set flag after the call
     _receiverActive = true;
   } else {
-    throw Exception("Executor object is not set");
+    throw Exception("Pubsuber: Executor object is not set");
   }
 }
 

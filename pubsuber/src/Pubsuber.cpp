@@ -34,7 +34,7 @@ Client::Client(ClientOptions &&opts)
   if (!_executor->_tr.EnsureConnected()) {
     // Executor should be stopped before killed bcuz of threw exception
     _executor->StopThreads();
-    const auto err = "Unable to connect to " + _executor->_options.Host() + " within given timeout";
+    const auto err = "Pubsuber: Unable to connect to " + _executor->_options.Host() + " within given timeout";
     throw Exception(err);
   }
 }
@@ -47,7 +47,7 @@ void Client::ApplyPolicies() {
 
 TopicPtr Client::GetTopic(const std::string &id, const std::string &project) {
   if (id.empty()) {
-    throw Exception("topic id (non-fully qualified name) must not be empty string");
+    throw Exception("Pubsuber: topic id (non-fully qualified name) must not be empty string");
   }
 
   const auto &prj = (project == "") ? _executor->_options.Project() : project;
@@ -60,7 +60,7 @@ TopicPtr Client::GetTopic(const std::string &id, const std::string &project) {
 
 SubscriptionPtr Client::GetSubscription(const std::string &id, const std::string &project) {
   if (id.empty()) {
-    throw Exception("topic id (non-fully qualified name) must not be empty string");
+    throw Exception("Pubsuber: topic id (non-fully qualified name) must not be empty string");
   }
 
   const auto &prj = (project == "") ? _executor->_options.Project() : project;

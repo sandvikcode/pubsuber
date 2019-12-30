@@ -120,7 +120,7 @@ namespace pubsuber::retriable {
 
       }  // switch
     }    // while
-    const auto err = "GRPC call '" + std::string(GetName<MemberFunc>()) + "' failed after " + std::to_string(countPolicy._count) + " times or " +
+    const auto err = "Pubsuber: GRPC call '" + std::string(GetName<MemberFunc>()) + "' failed after " + std::to_string(countPolicy._count) + " times or " +
                      std::to_string(timePolicy._interval.count()) + "s with error";
     throw Exception(err, status.error_code());
   }  // function
