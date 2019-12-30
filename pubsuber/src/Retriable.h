@@ -9,21 +9,43 @@
 
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
 
+#ifdef WIN32
+#define __PRETTY_FUNCTION__ __FUNCSIG__
+#endif
+
 namespace pubsuber::retriable {
   // Helper to extract function parameter name for debugging purposes
   template <typename NamedParamType>
   struct Namer {
     static const char *Name() {
       static const auto func_size = sizeof(__PRETTY_FUNCTION__);
-      static const char *const term = "NamedParamType = ";
-      static const auto term_len = sizeof("NamedParamType = ") - 1;
+      static const char *const open_term =
+#ifdef WIN32
+          "pubsuber::retriable::Namer<";
+#else
+          "NamedParamType = ";
+#endif
+
+      static const auto open_term_len =
+#ifdef WIN32
+          sizeof("pubsuber::retriable::Namer<") - 1;
+#else
+          sizeof("NamedParamType = ") - 1;
+#endif
+
+      static const auto close_term_len =
+#ifdef WIN32
+          sizeof(">::Name(void)") - 1;
+#else
+          sizeof("]") - 1;
+#endif
       static char buff[func_size] = {};
 
       strncpy(buff, __PRETTY_FUNCTION__, func_size);
-      auto p = strstr(buff, term);
+      auto p = strstr(buff, open_term);
       if (p == nullptr) return "???";
-      memmove(buff, p + term_len, buff + func_size - p - term_len);
-      buff[strlen(buff) - 1] = '\0';
+      memmove(buff, p + open_term_len, buff + func_size - p - open_term_len);
+      buff[strlen(buff) - close_term_len] = '\0';
       return buff;
     }
   };
@@ -52,7 +74,6 @@ namespace pubsuber::retriable {
   // Publisher specialization
   template <typename Request, typename Response>
   struct StubSignature<::grpc::Status (::google::pubsub::v1::Publisher::Stub::*)(::grpc::ClientContext *, const Request &, Response *)> {
-    using StubObjectType = ::google::pubsub::v1::Publisher::Stub;
     using RequestType = Request;
     using ResponseType = Response;
   };
@@ -60,18 +81,16 @@ namespace pubsuber::retriable {
   // Subscriber specialization
   template <typename Request, typename Response>
   struct StubSignature<::grpc::Status (::google::pubsub::v1::Subscriber::Stub::*)(::grpc::ClientContext *, const Request &, Response *)> {
-    using StubObjectType = ::google::pubsub::v1::Subscriber::Stub;
     using RequestType = Request;
     using ResponseType = Response;
   };
 
   using ReturnType = std::tuple<::grpc::Status, std::chrono::steady_clock::time_point>;
 
-  template <typename MemberFunc>
-  ReturnType make_call(std::unique_ptr<typename StubSignature<MemberFunc>::StubObjectType> &stub, MemberFunc function,
-                       typename StubSignature<MemberFunc>::RequestType &request, typename StubSignature<MemberFunc>::ResponseType &response,
-                       RetryCountPolicy countPolicy, MaxRetryTimePolicy timePolicy, ExponentialBackoffPolicy backoffPolicy,
-                       std::chrono::seconds rpcTimeout = retriable::kDefaultRPCTimeout) {
+  template <typename StubPtr, typename MemberFunc>
+  ReturnType make_call(StubPtr &stub, MemberFunc function, typename StubSignature<MemberFunc>::RequestType &request,
+                       typename StubSignature<MemberFunc>::ResponseType &response, RetryCountPolicy countPolicy, MaxRetryTimePolicy timePolicy,
+                       ExponentialBackoffPolicy backoffPolicy, std::chrono::seconds rpcTimeout = retriable::kDefaultRPCTimeout) {
     ExpoBackoff backoff(backoffPolicy);
     const auto start = std::chrono::steady_clock::now();
 
