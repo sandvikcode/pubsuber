@@ -9,8 +9,6 @@
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
 #include "pubsuber/Pubsuber.h"
 
-#include <spdlog/spdlog.h>
-
 namespace pubsuber {
   struct Executor;
 

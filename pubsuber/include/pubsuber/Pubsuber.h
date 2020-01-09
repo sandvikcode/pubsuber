@@ -1,5 +1,6 @@
 #pragma once
 
+#include <spdlog/spdlog.h>
 #include <chrono>
 #include <exception>
 #include <functional>
@@ -196,15 +197,13 @@ namespace pubsuber {
   };
 
   /**
-   * Sink is used to receive debug logs
+   * Sink is used to receive debug logs from pubsuber
    *
+   * Internally pubsuber uses spdlog and its types
    *
+   * NOTE: if no LogSink is provided pubsuber uses console logger
    */
-  class LogSink {
-  public:
-    virtual ~LogSink() = default;
-    // TODO
-  };
+  using LogSink = spdlog::sinks::sink;
 
   /**
    * Options used to tweak client behavior
@@ -236,6 +235,27 @@ namespace pubsuber {
     }
     int32_t MaxPrefetch() const { return _maxMessagePrefetch; }
 
+    ClientOptions &SetLogSink(std::shared_ptr<LogSink> sink) {
+      _logSink = sink;
+      return *this;
+    }
+    std::shared_ptr<LogSink> LogSink() const { return _logSink; }
+
+    ClientOptions &SetMetricSink(std::shared_ptr<MetricSink> sink) {
+      _metricSink = sink;
+      return *this;
+    }
+    std::shared_ptr<MetricSink> MetricSink() const { return _metricSink; }
+
+    /**
+     * Use this method to set initial log level for internal logger
+     */
+    ClientOptions &SetLogLevel(spdlog::level::level_enum level) {
+      _logLevel = level;
+      return *this;
+    }
+    spdlog::level::level_enum LogLevel() { return _logLevel; }
+
   private:
     explicit ClientOptions(std::string &&project, std::string host, bool secure, int32_t prefetch);
 
@@ -244,6 +264,9 @@ namespace pubsuber {
     std::string _pubsubHost;
     bool _secureChannel;
     int32_t _maxMessagePrefetch;
+    std::shared_ptr<pubsuber::LogSink> _logSink;
+    std::shared_ptr<pubsuber::MetricSink> _metricSink;
+    spdlog::level::level_enum _logLevel;
   };
 
   /**
@@ -304,32 +327,14 @@ namespace pubsuber {
     SubscriptionPtr GetSubscription(const std::string &id, const std::string &project = "");
 
     /**
-     * Add metric sink
-     * Method is thread safe
+     * Change current log level
      */
-    // exception
-    void AddMetricSink(std::shared_ptr<MetricSink> sink);
+    void SetLogLevel(spdlog::level::level_enum level);
 
     /**
-     * Removes previously sink
-     * Method is thread safe
+     * Get client version
      */
-    // exception
-    void RemoveMetricSink();
-
-    /**
-     * Add log sink
-     * Method is thread safe
-     */
-    // exception
-    void AddLogSink(std::shared_ptr<LogSink> sink);
-
-    /**
-     * Removes previously sink
-     * Method is thread safe
-     */
-    // exception
-    void RemoveLogSink();
+    static std::string VersionString();
 
   private:
     explicit Client(ClientOptions &&opts);
@@ -364,11 +369,11 @@ namespace pubsuber {
   template <typename... Policies>
   ClientPtr Client::Create(ClientOptions &&opts, Policies &&... policies) {
     if (opts.Project().empty()) {
-      throw Exception("project must not be empty string");
+      throw Exception("Pubsuber: project must not be empty string");
     }
 
     if (opts.Host().empty()) {
-      throw Exception("pubsubHost must not be empty");
+      throw Exception("Pubsuber: pubsubHost must not be empty");
     }
 
     return std::shared_ptr<Client>(new Client(std::move(opts), std::forward<Policies>(policies)...));

@@ -25,6 +25,9 @@ set(PS_CMAKE_VERSION_CONFIG_FILE "${PS_CMAKE_CONFIG_DIR}/${PROJECT_NAME}ConfigVe
 set(PS_CMAKE_PROJECT_CONFIG_FILE "${PS_CMAKE_CONFIG_DIR}/${PROJECT_NAME}Config.cmake")
 set(PS_CMAKE_PROJECT_TARGETS_FILE "${PS_CMAKE_CONFIG_DIR}/${PROJECT_NAME}Targets.cmake")
 
+configure_file(cmake/Version.h.in PubsuberVersion.h)
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
 # By default it is implied that pubsuber is build as standalone lib
 set(PS_IN_SOURCE_BUILD OFF)
 # CMAKE_SOURCE_DIR points to the top cmake file that may include pubsuber cmakefile

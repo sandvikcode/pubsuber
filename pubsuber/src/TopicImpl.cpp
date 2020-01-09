@@ -19,7 +19,7 @@ namespace {
     auto attrPtr = msg.mutable_attributes();
     for (auto &it : attributes) {
       if (it.first.empty()) {
-        throw Exception("attribute key must not be empty");
+        throw Exception("Pubsuber: attribute key must not be empty");
       }
       attrPtr->insert({it.first, it.second});
     }
@@ -51,7 +51,7 @@ bool TopicImpl::Exists() {
 
     default:
       if (!status.ok()) {
-        const auto err = "GetTopicRequest request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        const auto err = "Pubsuber: GetTopicRequest request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
         throw Exception(err, status.error_code());
       }
       return true;
@@ -68,7 +68,7 @@ void TopicImpl::Create() {
   auto [status, _] = retriable::make_call(publisher, &Publisher::Stub::CreateTopic, request, response, _countPolicy, _timePolicy, _backoffPolicy);
 
   if (!status.ok()) {
-    const auto err = "CreateTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+    const auto err = "Pubsuber: CreateTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
     throw Exception(err, status.error_code());
   }
 }
@@ -89,7 +89,7 @@ void TopicImpl::Delete() {
 
     default:
       if (!status.ok()) {
-        const auto err = "DeleteTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        const auto err = "Pubsuber: DeleteTopic request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
         throw Exception(err, status.error_code());
       }
       // its okay
@@ -113,12 +113,12 @@ std::string TopicImpl::Publish(const ByteBuffer &buffer, const std::map<std::str
   switch (status.error_code()) {
     default:
       if (!status.ok()) {
-        const auto err = "Publish request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
+        const auto err = "Pubsuber: Publish request failed with error " + std::to_string(status.error_code()) + ": " + status.error_message();
         throw Exception(err, status.error_code());
       }
 
       if (response.message_ids_size() == 0) {
-        throw Exception("received response.message_ids_size() is 0, no msg id to return to caller.");
+        throw Exception("Pubsuber: received response.message_ids_size() is 0, no msg id to return to caller.");
       }
       return response.message_ids(0);
   }

@@ -15,7 +15,7 @@
 #include "google/pubsub/v1/pubsub.grpc.pb.h"
 #include "pubsuber/Pubsuber.h"
 
-#include <spdlog/spdlog.h>
+#include "PSLog.h"
 
 namespace pubsuber {
   const auto kSoManyMilliseconds = 1000000000ms;
@@ -107,6 +107,8 @@ namespace pubsuber {
     // Must be called on ACK thread only
     std::chrono::milliseconds ProcessModAcks();
 
+    void SetupLogger(ClientOptions &opts);
+
   public:
     Executor(ClientOptions &&opts);
     void ApplyPolicies(const RetryCountPolicy &countPolicy, const MaxRetryTimePolicy &timePolicy, ExponentialBackoffPolicy &backoffPolicy);
@@ -118,11 +120,6 @@ namespace pubsuber {
     void AddIterator(const std::string &fullSubscriptionName, Callback &cb);
     // Thread safe
     void RemoveIterator(const std::string &fullSubscriptionName) noexcept(true);
-
-    // Thread safe
-    void AddMetricSink(std::shared_ptr<MetricSink> sink);
-    // Thread safe
-    void RemoveMetricSink();
 
     // Thread safe
     template <class Block>

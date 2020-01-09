@@ -1,6 +1,5 @@
 #include "Executor.h"
 
-#include <spdlog/spdlog.h>
 #include <algorithm>
 #include <cassert>
 #include <utility>
@@ -56,6 +55,8 @@ void Executor::ThreadDataBlock<IteratorContainerType>::RemoveFromActive() {
 //**********************************************************************************************************************
 Executor::Executor(ClientOptions &&opts)
 : _options(std::move(opts)) {
+  SetupLogger(_options);
+
   if (!_options.SecureChannel()) {
     _tr._creds = grpc::InsecureChannelCredentials();
   }
@@ -65,6 +66,8 @@ Executor::Executor(ClientOptions &&opts)
   arg.SetMaxReceiveMessageSize(kMaxSendRecvBytes);
   arg.SetMaxSendMessageSize(kMaxSendRecvBytes);
   _tr._channel = grpc::CreateCustomChannel(_options.Host(), _tr._creds, arg);
+
+  _metricsSinks = _options.MetricSink();
 
   // then start threads that uses this transport
   _pullThread._thread = std::thread(&Executor::PullThreadFunc, this);
@@ -78,13 +81,13 @@ void Executor::ApplyPolicies(const RetryCountPolicy &countPolicy, const MaxRetry
 }
 
 void Executor::AddIterator(const std::string &fullSubscriptionName, Callback &callback) {
-  spdlog::debug("AddIterator: {}", fullSubscriptionName);
+  logger::debug("AddIterator: {}", fullSubscriptionName);
 
   if (!callback) {
-    throw Exception("callback must be set");
+    throw Exception("Pubsuber: callback must be set");
   }
   if (fullSubscriptionName.empty()) {
-    throw Exception("subscription name must be set");
+    throw Exception("Pubsuber: subscription name must be set");
   }
 
   auto ackIterator = std::make_shared<ModAckIterator>(fullSubscriptionName, shared_from_this(), _countPolicy, _timePolicy, _backoffPolicy);
@@ -95,18 +98,10 @@ void Executor::AddIterator(const std::string &fullSubscriptionName, Callback &ca
 }
 
 void Executor::RemoveIterator(const std::string &fullSubscriptionName) noexcept(true) {
-  spdlog::debug("RemoveIterator: {}", fullSubscriptionName);
+  logger::debug("RemoveIterator: {}", fullSubscriptionName);
 
   _pullThread.RemoveIterator(fullSubscriptionName);
   _ackThread.RemoveIterator(fullSubscriptionName);
-}
-
-void Executor::AddMetricSink(std::shared_ptr<MetricSink> sink) {
-  _ackThread.ExecuteUnderMutex([this, &sink]() { _metricsSinks = sink; }, false);
-}
-
-void Executor::RemoveMetricSink() {
-  _ackThread.ExecuteUnderMutex([this]() { _metricsSinks.reset(); }, false);
 }
 
 void Executor::ReportKeepAliveMetric(size_t count) {
@@ -163,7 +158,7 @@ void Executor::PullThreadFunc() {
         _pullThread._cond.wait_for(l, sleep);
       }
     } catch (Exception &e) {
-      spdlog::error("Exception in Pull: {}", e.what());
+      logger::error("Exception in Pull: {}", e.what());
     }
   }
 }
@@ -179,7 +174,7 @@ std::chrono::milliseconds Executor::Pull() {
   });  // end of for_each
 
   std::chrono::microseconds us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start);
-  spdlog::trace("Pull took: {}us", us.count());
+  logger::trace("Pull took: {}us", us.count());
   if (us > kLowPullLimit) {
     // No need to slowdown the thread
     return kSoManyMilliseconds;
@@ -209,7 +204,7 @@ void Executor::AckThreadFunc() {
         const auto &[name, iterator] = pair;
         keepAliveCount += iterator->KeepAliveCount();
       });
-      spdlog::trace("KeepAlivesCount: {}", keepAliveCount);
+      logger::trace("KeepAlivesCount: {}", keepAliveCount);
       return (keepAliveCount == 0);
     }();
 
@@ -222,19 +217,19 @@ void Executor::AckThreadFunc() {
         const auto &[name, iterator] = pair;
         count += iterator->InputCount();
       });
-      spdlog::trace("getInputCount: {}", count);
+      logger::trace("getInputCount: {}", count);
       return count;
     };
 
     if (std::unique_lock l(_ackThread._condMutex); true) {
       // Wait only if input is empty, save one runloop
       if (needSleep || (getInputCount() == 0 && noKeepAlives)) {
-        spdlog::debug("ACK sleep for: {}ms", sleep.count());
+        logger::trace("ACK sleep for: {}ms", sleep.count());
         const auto status = _ackThread._cond.wait_for(l, sleep);
         if ((!needSleep && status == std::cv_status::timeout) || _ackThread._needStop) {
           continue;
         }
-        spdlog::trace("sleep status: {}", status);
+        logger::trace("sleep status: {}", status);
       }
 
       _ackThread.MergeInputToActive();
@@ -256,7 +251,7 @@ void Executor::AckThreadFunc() {
       needSleep = sleep != kSoManyMilliseconds;
 
     } catch (Exception &e) {
-      spdlog::error("Exception in ProcessModAcks: {}", e.what());
+      logger::error("Exception in ProcessModAcks: {}", e.what());
     }
   }
 }
@@ -272,3 +267,5 @@ std::chrono::milliseconds Executor::ProcessModAcks() {
 
   return sleep;
 }
+
+void Executor::SetupLogger(ClientOptions &opts) { logger::Setup(opts.LogSink(), opts.LogLevel()); }

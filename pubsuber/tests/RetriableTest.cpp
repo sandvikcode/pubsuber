@@ -18,7 +18,6 @@ namespace pubsuber {
   namespace retriable {
     template <typename Request, typename Response>
     struct StubSignature<::grpc::Status (::google::pubsub::v1::MockPublisherStub::*)(::grpc::ClientContext *, const Request &, Response *)> {
-      using StubObjectType = ::google::pubsub::v1::MockPublisherStub;
       using RequestType = Request;
       using ResponseType = Response;
     };

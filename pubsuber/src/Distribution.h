@@ -17,7 +17,7 @@ public:
 
   void Record(uint64_t v) {
     if (v < 0) {
-      throw std::runtime_error("Record: value out of range: " + std::to_string(v));
+      throw std::runtime_error("Pubsuber: Record: value out of range: " + std::to_string(v));
     } else if (v >= _hist.size()) {
       v = _hist.size() - 1;
     }
@@ -26,7 +26,7 @@ public:
 
   uint64_t Percentile(double p) const {
     if (p < 0.0 || p > 1.0) {
-      throw std::runtime_error("Percentile: percentile out of range: " + std::to_string(p));
+      throw std::runtime_error("Pubsuber: Percentile: percentile out of range: " + std::to_string(p));
     }
 
     std::array<uint64_t, HighLimit> sums;
@@ -41,7 +41,7 @@ public:
     auto target = uint64_t(std::ceil(double(sum) * p));
     auto it = std::lower_bound(sums.cbegin(), sums.cend(), target);
     if (it == sums.end()) {
-      throw std::runtime_error("target not found in sums: " + std::to_string(target));
+      throw std::runtime_error("Pubsuber: target not found in sums: " + std::to_string(target));
     }
 
     return it - sums.cbegin();

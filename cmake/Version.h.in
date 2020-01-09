@@ -1,0 +1,6 @@
+// This file is generated, do not edit
+//
+#define PUBSUBER_VERSION_MAJOR @pubsuber_VERSION_MAJOR@
+#define PUBSUBER_VERSION_MINOR @pubsuber_VERSION_MINOR@
+#define PUBSUBER_VERSION_PATCH @pubsuber_VERSION_PATCH@
+#define PUBSUBER_VERSION_STRING "@pubsuber_VERSION_MAJOR@.@pubsuber_VERSION_MINOR@.@pubsuber_VERSION_PATCH@"

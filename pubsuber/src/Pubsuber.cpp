@@ -1,10 +1,12 @@
 #include "pubsuber/Pubsuber.h"
 
 #include <grpc++/grpc++.h>
-#include <spdlog/spdlog.h>
 #include <algorithm>
+#include <memory>
 #include "Executor.h"
 #include "MessageImpl.h"
+#include "PSLog.h"
+#include "PubsuberVersion.h"
 #include "SubscriptionImpl.h"
 #include "TopicImpl.h"
 
@@ -32,7 +34,7 @@ Client::Client(ClientOptions &&opts)
   if (!_executor->_tr.EnsureConnected()) {
     // Executor should be stopped before killed bcuz of threw exception
     _executor->StopThreads();
-    const auto err = "Unable to connect to " + _executor->_options.Host() + " within given timeout";
+    const auto err = "Pubsuber: Unable to connect to " + _executor->_options.Host() + " within given timeout";
     throw Exception(err);
   }
 }
@@ -45,7 +47,7 @@ void Client::ApplyPolicies() {
 
 TopicPtr Client::GetTopic(const std::string &id, const std::string &project) {
   if (id.empty()) {
-    throw Exception("topic id (non-fully qualified name) must not be empty string");
+    throw Exception("Pubsuber: topic id (non-fully qualified name) must not be empty string");
   }
 
   const auto &prj = (project == "") ? _executor->_options.Project() : project;
@@ -58,7 +60,7 @@ TopicPtr Client::GetTopic(const std::string &id, const std::string &project) {
 
 SubscriptionPtr Client::GetSubscription(const std::string &id, const std::string &project) {
   if (id.empty()) {
-    throw Exception("topic id (non-fully qualified name) must not be empty string");
+    throw Exception("Pubsuber: topic id (non-fully qualified name) must not be empty string");
   }
 
   const auto &prj = (project == "") ? _executor->_options.Project() : project;
@@ -69,13 +71,9 @@ SubscriptionPtr Client::GetSubscription(const std::string &id, const std::string
 
 Client::~Client() { _executor->StopThreads(); }
 
-void Client::AddMetricSink(std::shared_ptr<MetricSink> sink) { _executor->AddMetricSink(sink); }
+void Client::SetLogLevel(spdlog::level::level_enum level) { pubsuber::logger::ChangeLevel(level); }
 
-void Client::RemoveMetricSink() { _executor->RemoveMetricSink(); }
-
-void Client::AddLogSink(std::shared_ptr<LogSink> sink) {}
-
-void Client::RemoveLogSink() {}
+std::string Client::VersionString() { return PUBSUBER_VERSION_STRING; }
 
 //**********************************************************************************************************************
 
@@ -88,4 +86,5 @@ ClientOptions::ClientOptions(std::string &&project, std::string host, bool secur
 : _project(std::move(project))
 , _pubsubHost(host)
 , _secureChannel(secure)
-, _maxMessagePrefetch(prefetch) {}
+, _maxMessagePrefetch(prefetch)
+, _logLevel(spdlog::level::info) {}

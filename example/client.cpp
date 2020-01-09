@@ -1,5 +1,6 @@
 #include <google/protobuf/message.h>
 #include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
 #include <chrono>
 #include <cstdio>
 #include <future>
@@ -39,6 +40,12 @@ void DoTheJob(uint32_t limit, const char *project) {
 
   pubsuber::ClientOptions opts = pubsuber::ClientOptions::CreateDefault(project);
   auto msink = std::make_shared<MetricSinkTest>();
+  opts.SetMetricSink(msink);
+
+  auto sink = std::make_shared<spdlog::sinks::stdout_sink_mt>();
+  sink->set_pattern("%D-%T.%f [%n] [%t] [%L]: %v");
+  opts.SetLogSink(sink);
+  opts.SetLogLevel(spdlog::level::debug);
 
   pubsuber::ClientPtr client;
   try {
@@ -46,8 +53,10 @@ void DoTheJob(uint32_t limit, const char *project) {
     pubsuber::MaxRetryTimePolicy timePolicy{30s};
     pubsuber::ExponentialBackoffPolicy backoffPolicy{250ms, 3s, 2.0};
 
+    spdlog::info("PS version: {}", pubsuber::Client::VersionString());
+
     client = pubsuber::Client::Create(std::move(opts), std::move(timePolicy), std::move(countPolicy), std::move(backoffPolicy));
-    client->AddMetricSink(msink);
+    client->SetLogLevel(spdlog::level::debug);
 
     auto topic = client->GetTopic(kTopicName);
     if (!topic->Exists()) {
@@ -119,10 +128,9 @@ void DoTheJob(uint32_t limit, const char *project) {
     spdlog::debug("============== END ============== ");
     std::this_thread::sleep_for(2s);
 
-    client->RemoveMetricSink();
-
   } catch (pubsuber::Exception& e) {
-    std::cerr << "Exception: " << e.what() << std::endl;
+    spdlog::error("Exception: {}", e.what());
+
     google::protobuf::ShutdownProtobufLibrary();
     std::exit(1);
   }
@@ -131,7 +139,7 @@ void DoTheJob(uint32_t limit, const char *project) {
 int main(int argc, char** argv) {
   GOOGLE_PROTOBUF_VERIFY_VERSION;
   spdlog::set_level(spdlog::level::debug);  // Set global log level to debug
-  spdlog::set_pattern("%D-%T.%f [%t] [%L]: %v");
+  spdlog::set_pattern("%D-%T.%f [%n] [%t] [%L]: %v");
   spdlog::debug("Start");
 
   if (argc < 3) {
