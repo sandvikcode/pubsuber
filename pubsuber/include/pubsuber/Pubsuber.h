@@ -235,17 +235,17 @@ namespace pubsuber {
     }
     int32_t MaxPrefetch() const { return _maxMessagePrefetch; }
 
-    ClientOptions &SetLogSink(std::shared_ptr<LogSink> sink) {
+    ClientOptions &SetLogSink(std::shared_ptr<pubsuber::LogSink> sink) {
       _logSink = sink;
       return *this;
     }
-    std::shared_ptr<LogSink> LogSink() const { return _logSink; }
+    std::shared_ptr<pubsuber::LogSink> LogSink() const { return _logSink; }
 
-    ClientOptions &SetMetricSink(std::shared_ptr<MetricSink> sink) {
+    ClientOptions &SetMetricSink(std::shared_ptr<pubsuber::MetricSink> sink) {
       _metricSink = sink;
       return *this;
     }
-    std::shared_ptr<MetricSink> MetricSink() const { return _metricSink; }
+    std::shared_ptr<pubsuber::MetricSink> MetricSink() const { return _metricSink; }
 
     /**
      * Use this method to set initial log level for internal logger
