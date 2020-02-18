@@ -98,9 +98,13 @@ void DoTheJob(uint32_t limit, const char *project) {
       auto idd = topic->Publish("My message" + std::to_string(count), {{"key1", "KKK1" + std::to_string(count)}, {"key2", "KKK2"}});
       spdlog::debug("Publish msg id: {}", idd);
 
-      if (count > 200) {
+      if (count > 10) {
         std::unique_lock l(mmm);
-        messages.back()->Ack();
+        if (count % 2 == 0) {
+          messages.back()->Nack();
+        } else {
+          messages.back()->Ack();
+        }
         messages.pop_back();
       }
     }

@@ -126,8 +126,7 @@ void ModAckIterator::ExtendAckDeadlines(std::unique_ptr<Subscriber::Stub> &subsc
   }  // end of switch
 }
 
-template <class IdsContainer>
-std::chrono::milliseconds ModAckIterator::ModifyAckDeadlines(std::unique_ptr<Subscriber::Stub> &subscriber, IdsContainer &ids, std::chrono::seconds dl,
+std::chrono::milliseconds ModAckIterator::ModifyAckDeadlines(std::unique_ptr<Subscriber::Stub> &subscriber, WatchDescrContainer &ids, std::chrono::seconds dl,
                                                              std::chrono::seconds gracePeriod) {
   if (ids.empty()) {
     return kSoManyMilliseconds;
@@ -135,28 +134,21 @@ std::chrono::milliseconds ModAckIterator::ModifyAckDeadlines(std::unique_ptr<Sub
 
   AckIDPackSet toModify;
 
-  if constexpr (std::is_same<AckIDSet, IdsContainer>::value) {
-    while (!ids.empty()) {
-      toModify.emplace(std::move(ids.extract(ids.begin()).value()), WatchDescrContainer::iterator());
+  const auto pseudoNow = std::chrono::steady_clock::now();
+  std::chrono::milliseconds sleepTime = kSoManyMilliseconds;
+
+  give_me_the_keys(ids, toModify, [gracePeriod, pseudoNow, &sleepTime](const auto &descr) -> bool {
+    const auto ms = descr.ExtendIn(pseudoNow);
+    if (ms > gracePeriod) {
+      sleepTime = std::min(sleepTime, ms);
+      return false;
     }
+    return true;
+  });
 
-  } else if constexpr (std::is_same<WatchDescrContainer, IdsContainer>::value) {
-    const auto pseudoNow = std::chrono::steady_clock::now();
-    std::chrono::milliseconds sleepTime = kSoManyMilliseconds;
-
-    give_me_the_keys(ids, toModify, [gracePeriod, pseudoNow, &sleepTime](const auto &descr) -> bool {
-      const auto ms = descr.ExtendIn(pseudoNow);
-      if (ms > gracePeriod) {
-        sleepTime = std::min(sleepTime, ms);
-        return false;
-      }
-      return true;
-    });
-
-    if (toModify.empty()) {
-      // Half of the smallest interval we need to extend in
-      return sleepTime / 2;
-    }
+  if (toModify.empty()) {
+    // Half of the smallest interval we need to extend in
+    return sleepTime / 2;
   }
 
   logger::debug("ModifyAckDeadlines: {} for extension", toModify.size());
@@ -200,10 +192,10 @@ std::chrono::milliseconds ModAckIterator::ProcessModAcks(std::unique_ptr<google:
   // Modify deadline to 0s for removed acksIDs
   SendAcks(subscriber, pendingAcks);
 
-  // Erase first since pendingNacks will be modified by ModifyAckDeadlines
+  // pendingNacks will be modified by SendNacks
   erase_keys(_keepAliveAckIDs, pendingNacks);
   // Set dl for nacks as 0s, grace is just large around a week
-  ModifyAckDeadlines(subscriber, pendingNacks, 0s, kSoManySeconds);
+  SendNacks(subscriber, pendingNacks);
 
   logger::debug("ProcessModAcks: Final keep alives: {}", _keepAliveAckIDs.size());
 
