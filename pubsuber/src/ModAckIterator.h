@@ -48,9 +48,8 @@ namespace pubsuber {
                             FinishCallback callback);
 
     // Must be called on ACK thread only
-    template <class IdsContainer>
-    std::chrono::milliseconds ModifyAckDeadlines(std::unique_ptr<google::pubsub::v1::Subscriber::Stub> &subscriber, IdsContainer &ids, std::chrono::seconds dl,
-                                                 std::chrono::seconds gracePeriod);
+    std::chrono::milliseconds ModifyAckDeadlines(std::unique_ptr<google::pubsub::v1::Subscriber::Stub> &subscriber, WatchDescrContainer &ids,
+                                                 std::chrono::seconds dl, std::chrono::seconds gracePeriod);
     // Must be called on ACK thread only
     void SendAcks(std::unique_ptr<google::pubsub::v1::Subscriber::Stub> &subscriber, AckIDSet &ids);
 
